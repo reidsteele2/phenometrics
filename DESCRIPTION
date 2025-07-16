@@ -1,11 +1,17 @@
 Package: phenometrics
-Title: What the Package Does (One Line, Title Case)
+Title: Time of Emergence Metrics and Community-Level Indicators for Phenological Responses to Climate Change
 Version: 0.0.0.9000
-Authors@R: 
+Authors@R:
     person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Description: This package contains functions to analyze phenological responses to climate change using Time of Emergence (ToE) methodology, which is designed to identify the point at which a species establishes a 'new normal' in terms of its phenology. It also contains functions to summarize the ToE results of many species into community-level indicators, and test for match/mismatch dynamics between species.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
+Imports: 
+    data.table,
+    dplyr,
+    ggplot2,
+    graphics,
+    magrittr,
+    stats

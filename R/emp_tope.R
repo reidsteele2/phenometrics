@@ -4,8 +4,31 @@
 ########################################################################################
 
 
+#' Calculate Time of Phenological Emergence (ToPE) for a single phenology time series
+#'
+#' @param data A data frame containing the time series to test for ToEE. Must contain year (column named 'year') and timing of phenological event of interest, in Julian day (column named 'event').
+#' @param emt Number of consecutive years of positive test results required to define emergence.
+#' @param plot If TRUE, will generate a plot of test result against year.
+#' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
+#' @param alt Alternative hypothesis for emergence testing. Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.
+#' @param quants Quantiles of the detrended data used to determine the emergence threshold
+#' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#'
+#' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
+#' @export
+#'
+#' @examples
+#' # Set seed
+#' set.seed(123)
+#'
+#' # Create test dataset
+#' year = seq(1,30,1)
+#' event = round(rnorm(30, 100, 5))- seq(1,30,1)
+#' dataset = data.frame(year, event)
+#'
+#' # Calculate empirical time of phenological emergence (ToPE)
+#' emp_tope(dataset)
 
-# Empirical emergence tests
 
 # Calculate time of emergence using Empirical Test
 emp_tope = function(data,     # Input data
@@ -53,7 +76,7 @@ emp_tope = function(data,     # Input data
   } else {
 
     # Run initial years
-    data_f = filter(data, year <= iyear)
+    data_f = dplyr::filter(data, year <= iyear)
 
     # Fit linear model (arrival)
     lm_ev = lm(event ~ year, data = data_f)
