@@ -66,5 +66,5 @@ sp2 = data.frame(year, species, event, env)
 dataset = rbind(sp1, sp2)
 
 # Calculate empirical time of phenological emergence (ToPE)
-community(datset)
+community(dataset)
 }
