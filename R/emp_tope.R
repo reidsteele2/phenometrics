@@ -10,7 +10,7 @@
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param plot If TRUE, will generate a plot of test result against year.
 #' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
-#' @param alt Alternative hypothesis for emergence testing. Set to 'greater' by default, indicating checking for an decreasubg trend in the time series of event ~ year.
+#' @param alt Alternative hypothesis for emergence testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.
 #' @param quants Quantiles of the detrended data used to determine the emergence threshold
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
 #'
