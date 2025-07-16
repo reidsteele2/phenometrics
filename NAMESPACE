@@ -2,5 +2,6 @@
 
 export("%>%")
 export(emp_toee)
+export(emp_tom)
 export(emp_tope)
 importFrom(magrittr,"%>%")

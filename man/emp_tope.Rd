@@ -23,7 +23,7 @@ emp_tope(
 
 \item{max_y}{Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.}
 
-\item{alt}{Alternative hypothesis for emergence testing. Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.}
+\item{alt}{Alternative hypothesis for emergence testing. Set to 'greater' by default, indicating checking for an decreasubg trend in the time series of event ~ year.}
 
 \item{quants}{Quantiles of the detrended data used to determine the emergence threshold}
 
