@@ -78,7 +78,7 @@ emp_tope = function(data,     # Input data
     for(i in which(is.na(slopes$adj))){
 
       # filter data to relevant years
-      data_f = filter(data, year %in% seq(slopes$year[i] - (max_y - 1), slopes$year[i], 1))
+      data_f = dplyr::filter(data, year %in% seq(slopes$year[i] - (max_y - 1), slopes$year[i], 1))
 
       # Fit linear model (arrival)
       lm_ev = lm(event ~ year, data = data_f)
@@ -105,8 +105,8 @@ emp_tope = function(data,     # Input data
   } # End else
 
   # Calculate annual means of data and detrended data
-  data_m = group_by(data, year) %>% summarize(event = mean(event))
-  data_d_m = group_by(data_d, year) %>% summarize(event = mean(event))
+  data_m = dplyr::group_by(data, year) %>% dplyr::summarize(event = mean(event))
+  data_d_m = dplyr::group_by(data_d, year) %>% dplyr::summarize(event = mean(event))
 
   # Calculate quantiles of interest
   for(i in 1:length(quants)){thresh = c(quantile(data_d_m$event, min(quants)), quantile(data_d_m$event, max(quants)))}
@@ -121,7 +121,7 @@ emp_tope = function(data,     # Input data
   if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > data_m$event)|(max(thresh) < data_m$event), 1, 0)}
 
   # Calculate emergence
-  emerged = frollapply(ks_p, n = emt, function(x){all(x>=0.5)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=0.5)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){
