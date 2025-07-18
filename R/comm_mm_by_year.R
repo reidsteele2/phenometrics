@@ -52,7 +52,7 @@ comm_mm_by_year = function(output, plot = T){
   # Summarize community output
   mm_yr = dplyr::group_by(output, year) %>%
     dplyr::filter(is.na(emerged) == F) %>%
-    dplyr::summarize(mismatch = sum(emerged)/n())
+    dplyr::summarize(mismatch = sum(emerged)/dplyr::n())
 
   # Plot result
   if(plot == T){
