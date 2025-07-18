@@ -4,7 +4,8 @@
 ########################################################################################
 
 
-#' Calculate Time of Phenological Emergence (ToPE) for a single phenology time series
+#' @title Empirical Time of Phenological Emergence (ToPE)
+#' @description Calculate Time of Phenological Emergence (ToPE) for a single phenology time series
 #'
 #' @param data A data frame containing the time series to test for ToEE. Must contain year (column named 'year') and timing of phenological event of interest, in Julian day (column named 'event').
 #' @param emt Number of consecutive years of positive test results required to define emergence.

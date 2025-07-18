@@ -4,7 +4,8 @@
 ########################################################################################
 
 
-#' Calculate Time of Environmental Emergence (ToEE) for a single phenology time series
+#' @title Empirical Time of Environmental Emergence (ToEE)
+#' @description Calculate Time of Environmental Emergence (ToEE) for a single phenology time series
 #'
 #' @param data A data frame containing the time series to test for ToEE. Must contain year (column named 'year') and environmental condition of interest (column named 'env').
 #' @param emt Number of consecutive years of positive test results required to define emergence.

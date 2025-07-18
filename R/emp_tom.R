@@ -5,7 +5,8 @@
 
 
 
-#' Calculate Time of Mismatch (ToM) between two time series
+#' @title Empirical Time of Mismatch (ToM)
+#' @description Calculate Time of Mismatch (ToM) between two time series
 #'
 #' @param sp1 A data frame containing the time series to test for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
 #' @param sp2 A data frame containing the time series against which sp1 is compared for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
@@ -109,8 +110,8 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   # sp2_mm$event = sp2_mm$event - adj_sp2 + adj_sp2tosp1
 
   # Calculate annual means of data and retrended data
-  sp1_mean = group_by(sp1, year) %>% summarize(event = mean(event))
-  sp1_mm_mean = group_by(sp1_mm, year) %>% summarize(event = mean(event))
+  sp1_mean = dplyr::group_by(sp1, year) %>% dplyr::summarize(event = mean(event))
+  sp1_mm_mean = dplyr::group_by(sp1_mm, year) %>% dplyr::summarize(event = mean(event))
 
   # Calculate quantiles of interest
   for(i in 1:length(quants)){thresh = c(quantile(sp1_mm_mean$event, min(quants)), quantile(sp1_mm_mean$event, max(quants)))}
@@ -125,7 +126,7 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > sp1_mean$event)|(max(thresh) < sp1_mean$event), 1, 0)}
 
   # Calculate emergence
-  emerged = frollapply(ks_p, n = emt, function(x){all(x>=0.5)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=0.5)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){

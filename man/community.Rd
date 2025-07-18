@@ -2,23 +2,24 @@
 % Please edit documentation in R/community.R
 \name{community}
 \alias{community}
-\title{Calculate ToPE and ToEE metrics for all species in a dataset}
+\title{Community ToPE and ToEE Metrics}
 \usage{
 community(
   data,
   em_alt = "greater",
   dc_alt = "less",
   method = "empirical",
+  emt = 5,
   quants = c(0.025, 0.975),
   alpha = 0.05,
   ks_t = 0.6,
   nboot = 100,
   max_y = 0,
-  emt = 5
+  unemergence = F
 )
 }
 \arguments{
-\item{data}{A data frame containing the time series to test for ToEE and ToPE. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), environmental condition of interest (column named 'env'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species')}
+\item{data}{A data frame containing the time series to test for ToEE and ToPE. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), environmental condition of interest (column named 'env'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species').}
 
 \item{em_alt}{Alternative hypothesis for ToPE testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
 
@@ -26,17 +27,19 @@ community(
 
 \item{method}{Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.}
 
-\item{quants}{Quantiles used for empirical testing. Unused if method = 'statistical'}
+\item{emt}{Number of consecutive years of positive test results required to define emergence.}
 
-\item{alpha}{Alpha value used to determine significance for statistical testing. Unused if method = 'empirical'}
+\item{quants}{Quantiles used for empirical testing. Unused if method = 'statistical'.}
 
-\item{ks_t}{Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'}
+\item{alpha}{Alpha value used to determine significance for statistical testing. Unused if method = 'empirical'.}
 
-\item{nboot}{Number of boostrapped KS tests to run. Unused if method = 'empirical'}
+\item{ks_t}{Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'.}
+
+\item{nboot}{Number of boostrapped KS tests to run. Unused if method = 'empirical'.}
 
 \item{max_y}{Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.}
 
-\item{emt}{Number of consecutive years of positive test results required to define emergence.}
+\item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
 }
 \value{
 A data frame containing classification results for each species and year determined by ToPE and ToEE test results. Designed to feed into class_by_year() and class_by_species() functions.
@@ -63,7 +66,7 @@ species = 2
 sp2 = data.frame(year, species, event, env)
 
 # combine
-dataset = rbind(sp1, sp2)
+dataset = as.data.frame(rbind(sp1, sp2))
 
 # Calculate empirical time of phenological emergence (ToPE)
 community(dataset)

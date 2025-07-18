@@ -2,7 +2,7 @@
 % Please edit documentation in R/emp_toee.R
 \name{emp_toee}
 \alias{emp_toee}
-\title{Calculate Time of Environmental Emergence (ToEE) for a single phenology time series}
+\title{Empirical Time of Environmental Emergence (ToEE)}
 \usage{
 emp_toee(
   data,

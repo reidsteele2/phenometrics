@@ -2,7 +2,7 @@
 % Please edit documentation in R/emp_tom.R
 \name{emp_tom}
 \alias{emp_tom}
-\title{Calculate Time of Mismatch (ToM) between two time series}
+\title{Empirical Time of Mismatch (ToM)}
 \usage{
 emp_tom(
   sp1,

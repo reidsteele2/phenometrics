@@ -5,18 +5,21 @@
 
 
 
-#' Calculate ToPE and ToEE metrics for all species in a dataset
+#' @title Community ToPE and ToEE Metrics
+#' @description Calculate ToPE and ToEE metrics for all species in a dataset
 #'
-#' @param data A data frame containing the time series to test for ToEE and ToPE. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), environmental condition of interest (column named 'env'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species')
+#' @param data A data frame containing the time series to test for ToEE and ToPE. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), environmental condition of interest (column named 'env'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species').
 #' @param em_alt Alternative hypothesis for ToPE testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.
 #' @param dc_alt Alternative hypothesis for ToEE emergence testing. Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.
 #' @param method Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.
-#' @param quants Quantiles used for empirical testing. Unused if method = 'statistical'
-#' @param alpha Alpha value used to determine significance for statistical testing. Unused if method = 'empirical'
-#' @param ks_t Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'
-#' @param nboot Number of boostrapped KS tests to run. Unused if method = 'empirical'
-#' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
 #' @param emt Number of consecutive years of positive test results required to define emergence.
+#' @param quants Quantiles used for empirical testing. Unused if method = 'statistical'.
+#' @param alpha Alpha value used to determine significance for statistical testing. Unused if method = 'empirical'.
+#' @param ks_t Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'.
+#' @param nboot Number of boostrapped KS tests to run. Unused if method = 'empirical'.
+#' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
+#' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+
 #'
 #' @returns A data frame containing classification results for each species and year determined by ToPE and ToEE test results. Designed to feed into class_by_year() and class_by_species() functions.
 #' @export
@@ -40,7 +43,7 @@
 #' sp2 = data.frame(year, species, event, env)
 #'
 #' # combine
-#' dataset = rbind(sp1, sp2)
+#' dataset = as.data.frame(rbind(sp1, sp2))
 #'
 #' # Calculate empirical time of phenological emergence (ToPE)
 #' community(dataset)
@@ -51,11 +54,13 @@
 community = function(data,
                      em_alt = 'greater', dc_alt = 'less', # KS Direction parameters
                      method = 'empirical', # empirical or statistical
+                     emt = 5, # emergence threshold
                      quants = c(0.025, 0.975), # quantiles
                      alpha = 0.05, # Significance threshold for ks test
                      ks_t = 0.6, # KS test threshold
                      nboot = 100, # Number of bootstraps for ks testing
-                     max_y = 0, emt = 5){ # Rolling window option, 0 = no rolling window
+                     max_y = 0, # Rolling window option, 0 = no rolling window
+                     unemergence = F){ # if F, all years after first emergence are set to emergence
 
   # Emergence - species curves
   em_curve = NULL
@@ -65,16 +70,16 @@ community = function(data,
   for(i in 1:length(unique(data$species))){
 
     # Load in data
-    sp = filter(data, species == unique(data$species)[i])
+    sp = dplyr::filter(data, species == unique(data$species)[i])
 
     # Empirical/statistical
     if(method == 'statistical'){
 
       # Run individual curves
       em = cbind(species = unique(data$species)[i],
-                 ks_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, alpha = alpha, ks_t = ks_t, nboot = nboot))
+                 ks_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, unemergence = unemergence, alpha = alpha, ks_t = ks_t, nboot = nboot))
       dc = cbind(species = unique(data$species)[i],
-                 ks_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, alpha = alpha, ks_t = ks_t, nboot = nboot))
+                 ks_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, unemergence = unemergence, alpha = alpha, ks_t = ks_t, nboot = nboot))
 
     }
 
@@ -83,9 +88,9 @@ community = function(data,
 
       # Run individual curves
       em = cbind(species = unique(data$species)[i],
-                 emp_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, quants = quants))
+                 emp_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, unemergence = unemergence, quants = quants))
       dc = cbind(species = unique(data$species)[i],
-                 emp_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, quants = quants))
+                 emp_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, unemergence = unemergence, quants = quants))
 
     }
 
@@ -110,11 +115,11 @@ community = function(data,
   colnames(dc_curve)[which(colnames(dc_curve) =='emerged')] = 'decoupled'
 
   # Join data frames
-  all_curves = left_join(em_curve, dc_curve, by = c('species', 'year'))
+  all_curves = dplyr::left_join(em_curve, dc_curve, by = c('species', 'year'))
 
   # Add combination curve
-  all_curves = all_curves %>% mutate(combination = ifelse((emerged == 1) & (decoupled == 1), 1, 0)) %>%
-    mutate(shift = ifelse(combination == 1, 0, emerged), # Remove combined shifts
+  all_curves = all_curves %>% dplyr::mutate(combination = ifelse((emerged == 1) & (decoupled == 1), 1, 0)) %>%
+    dplyr::mutate(shift = ifelse(combination == 1, 0, emerged), # Remove combined shifts
            decouple = ifelse(combination == 1, 0, decoupled), # Remove combined decouples
            unaffected = ifelse(shift+decouple+combination == 0, 1, 0)) # Add no climate change column
 

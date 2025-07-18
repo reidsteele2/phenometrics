@@ -14,4 +14,5 @@ Imports:
     ggplot2,
     graphics,
     magrittr,
-    stats
+    stats,
+    tidyr

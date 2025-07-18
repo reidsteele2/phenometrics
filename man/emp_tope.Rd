@@ -2,7 +2,7 @@
 % Please edit documentation in R/emp_tope.R
 \name{emp_tope}
 \alias{emp_tope}
-\title{Calculate Time of Phenological Emergence (ToPE) for a single phenology time series}
+\title{Empirical Time of Phenological Emergence (ToPE)}
 \usage{
 emp_tope(
   data,
