@@ -11,6 +11,7 @@
 #' @param alt Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
 #' @param method Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.
 #' @param emt Number of consecutive years of positive test results required to define emergence.
+#' @param base_y Number of years at the start of the time series to compare to ensure testing is appropraite. Species pairs will only be tested if the first base_y years event values are within 1 standard deviation.
 #' @param quants Quantiles used for empirical testing. Unused if method = 'statistical'.
 #' @param alpha Alpha value used to determine significance for statistical testing. Unused if method = 'empirical'.
 #' @param ks_t Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'.
@@ -57,6 +58,7 @@ comm_mismatch = function(data,
                          alt = 'two.sided',     # Alternative hypothesis for ks test: greater, less, 2 sided
                          method = 'empirical', # Empirical or statistical
                          emt = 5, # Emergence threshold (number of years for emergence)
+                         base_y = 5, # Number of years from the start of the time series to compare to ensure testing is appropriate
                          quants = c(0.025, 0.975), # quantiles for empirical testing
                          alpha = 0.05, # Significance threshold for ks test
                          ks_t = 0.6, # KS test threshold
@@ -118,9 +120,9 @@ comm_mismatch = function(data,
       minyear = max(c(sp1_minyear, sp2_minyear))
 
       # Calculate mean and sd of first 5 years
-      sp2_ori = dplyr::filter(sp2_data, year <= minyear+4) %>%
+      sp2_ori = dplyr::filter(sp2_data, year <= minyear+base_y-1) %>%
         dplyr::summarize(mean = mean(event), sd = sd(event))
-      sp1_ori = dplyr::filter(sp1_data, year <= minyear+4) %>%
+      sp1_ori = dplyr::filter(sp1_data, year <= minyear+base_y-1) %>%
         dplyr::summarize(mean = mean(event), sd = sd(event))
 
       # Calculate upper and lower limit

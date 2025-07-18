@@ -9,6 +9,7 @@ comm_mismatch(
   alt = "two.sided",
   method = "empirical",
   emt = 5,
+  base_y = 5,
   quants = c(0.025, 0.975),
   alpha = 0.05,
   ks_t = 0.6,
@@ -24,6 +25,8 @@ comm_mismatch(
 \item{method}{Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.}
 
 \item{emt}{Number of consecutive years of positive test results required to define emergence.}
+
+\item{base_y}{Number of years at the start of the time series to compare to ensure testing is appropraite. Species pairs will only be tested if the first base_y years event values are within 1 standard deviation.}
 
 \item{quants}{Quantiles used for empirical testing. Unused if method = 'statistical'.}
 
