@@ -9,9 +9,8 @@ emp_tom(
   sp2,
   emt = 5,
   plot = T,
-  max_y = 0,
   alt = "two.sided",
-  quants = c(0.025, 0.975),
+  quants = c(0.25, 0.75),
   unemergence = F
 )
 }
@@ -24,8 +23,6 @@ emp_tom(
 
 \item{plot}{If TRUE, will generate a plot of test result against year.}
 
-\item{max_y}{Moving year window used to generate counterfactual. If 0, moving window is deactivated, else length of moving year window.}
-
 \item{alt}{Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.}
 
 \item{quants}{Quantiles of the counterfactual data used to determine the emergence threshold}
@@ -36,7 +33,7 @@ emp_tom(
 A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
 }
 \description{
-Calculate Time of Mismatch (ToM) between two time series
+Calculate Time of Mismatch (ToM) between two time series using empirical methodology.
 }
 \examples{
 # Set seed

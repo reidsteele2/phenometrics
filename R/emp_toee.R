@@ -37,7 +37,7 @@ emp_toee = function(data,    # Input data
                     plot = T, # Plot results?
                     max_y = 0, # Maximum year window, 0 = deactivated
                     alt = 'less', # KS Test sidedness
-                    quants = c(0.025, 0.975),
+                    quants = c(0.25, 0.75),
                     unemergence = F # if F, all years after first emergence are set to emergence
 ){
 

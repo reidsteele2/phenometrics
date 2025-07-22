@@ -10,7 +10,7 @@ emp_toee(
   plot = T,
   max_y = 0,
   alt = "less",
-  quants = c(0.025, 0.975),
+  quants = c(0.25, 0.75),
   unemergence = F
 )
 }

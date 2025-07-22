@@ -5,15 +5,17 @@
 
 
 
-#' @title Empirical Time of Mismatch (ToM)
-#' @description Calculate Time of Mismatch (ToM) between two time series using empirical methodology.
+#' @title Statistical Time of Mismatch (ToM)
+#' @description Calculate Time of Mismatch (ToM) between two time series use statistical methodology.
 #'
 #' @param sp1 A data frame containing the time series to test for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
 #' @param sp2 A data frame containing the time series against which sp1 is compared for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
-#' @param emt Number of consecutive years of positive test results required to define emergence.
-#' @param plot If TRUE, will generate a plot of test result against year.
 #' @param alt Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
-#' @param quants Quantiles of the counterfactual data used to determine the emergence threshold
+#' @param emt Number of consecutive years of positive test results required to define emergence.
+#' @param alpha Significance value for KS test.
+#' @param ks_t Proportion of significant bootstrap KS tests required for a positive test result
+#' @param nboot Number of KS test bootstraps samples.
+#' @param plot If TRUE, will generate a plot of test result against year.
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
@@ -23,32 +25,34 @@
 #' # Set seed
 #' set.seed(123)
 #'
-#' # Create test dataset
-#' year = seq(1,30,1)
-#' event = round(rnorm(30, 100, 5))- seq(1,30,1)
+#' # Create test dataset 1
+#' year = rep(seq(1,30,1), 10)
+#' event = round(rnorm(300, 100, 5))- rep(seq(1,30,1), 10)
 #' species = 1
-#' sp1 = data.frame(year, species, event)
+#' sp1 = data.frame(year, species, event); sp1 = sp1[order(sp1$year),]
 #'
-#' # Create test dataset
-#' year = seq(1,30,1)
-#' event = round(rnorm(30, 100, 5))
+#' # Create test dataset 2
+#' year = rep(seq(1,30,1), 10)
+#' event = round(rnorm(300, 100, 5))
 #' species = 2
-#' sp2 = data.frame(year, species, event)
+#' sp2 = data.frame(year, species, event); sp2 = sp2[order(sp2$year),]
 #'
 #' # Calculate empirical time of phenological emergence (ToPE)
-#' emp_tom(sp1, sp2)
+#' ks_tom(sp1, sp2)
 
 
 
-# Calculate time of mismatch using Empirical Test
-emp_tom = function(sp1,     # Input data for species 1 (test species)
-                   sp2,     # Input data for species 2 (comparison species)
-                   emt = 5,  # Emergence threshold (number of years for emergence)
-                   plot = T, # Plot results?
-                   # max_y = 0, # Maximum year window, 0 = deactivated
-                   alt = 'two.sided', # KS Test sidedness
-                   quants = c(0.25, 0.75),
-                   unemergence = F # if F, all years after first emergence are set to emergence
+# Calculate time of mismatch using KS Test
+ks_tom = function(sp1,     # Input data for species 1
+                  sp2,     # Input data for species 2
+                  alt = 'two.sided',     # Alternative hypothesis for ks test: greater, less, 2 sided
+                  emt = 5, # Emergence threshold (number of years for emergence)
+                  # max_y = 0, # moving window, 0 = deactivated
+                  alpha = 0.05, # Significance threshold for ks test
+                  ks_t = 0.6, # KS test threshold
+                  nboot = 100, # Number of bootstraps for ks testing
+                  plot = T, # Plot results?
+                  unemergence = F # if F, all years after first emergence are set to emergence
 ){
 
   # gather year range
@@ -99,33 +103,35 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   # Calculate adjustment
   adj_sp1 = (ind_sp1-1)*(lm_ev_b_sp1)
   adj_sp1tosp2 = (ind_sp1-1)*(lm_ev_b_sp2)
-  # adj_sp2 = (ind_sp2-1)*(lm_ev_b_sp2)
-  # adj_sp2tosp1 = (ind_sp2-1)*(lm_ev_b_sp1)
+  adj_sp2 = (ind_sp2-1)*(lm_ev_b_sp2)
+  adj_sp2tosp1 = (ind_sp2-1)*(lm_ev_b_sp1)
 
-  # Swap Species trends
+  # Swap Species
   sp1_mm = sp1
   sp1_mm$event = sp1_mm$event - adj_sp1 + adj_sp1tosp2
-  # sp2_mm = sp2
-  # sp2_mm$event = sp2_mm$event - adj_sp2 + adj_sp2tosp1
+  sp2_mm = sp2
+  sp2_mm$event = sp2_mm$event - adj_sp2 + adj_sp2tosp1
 
-  # Calculate annual means of data and retrended data
-  sp1_mean = dplyr::group_by(sp1, year) %>% dplyr::summarize(event = mean(event))
-  sp1_mm_mean = dplyr::group_by(sp1_mm, year) %>% dplyr::summarize(event = mean(event))
+  # Run ks tests
 
-  # Calculate quantiles of interest
-  for(i in 1:length(quants)){thresh = c(quantile(sp1_mm_mean$event, min(quants)), quantile(sp1_mm_mean$event, max(quants)))}
+  # p value container
+  ks_p = rep(NA, length(unique(sp1$year)))
 
-  # If alt = greater, check if the minimum threshold is greater than each individual year
-  if(alt == 'greater'){ks_p = ifelse(min(thresh) > sp1_mean$event, 1, 0)}
+  # Cycle years and perform KS test
+  for(i in 1:length(unique(sp1$year))){
 
-  # If alt = lesser, check if the maximum threshold is less than each individual year
-  if(alt == 'less'){ks_p = ifelse(max(thresh) < sp1_mean$event, 1, 0)}
+    # Run KS test
+    ks_r = ks(sp1_mm[sp1_mm$year==unique(sp1_mm$year)[i], 'event'],
+              sp1[sp1$year==unique(sp1$year)[i], 'event'],
+              alt = alt, alpha = alpha, nboot = nboot)
 
-  # if alt = two.sided, check both
-  if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > sp1_mean$event)|(max(thresh) < sp1_mean$event), 1, 0)}
+    # Fill ks_p
+    ks_p[i] = ks_r
+
+  } # End KS test loop
 
   # Calculate emergence
-  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=0.5)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=ks_t)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){
@@ -162,7 +168,8 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
     # Plot p-value curve
     plot(ks_p ~ unique(sp1$year), type = 'l', pch = 16, lwd = 2,
          main = paste(unique(sp1$species), 'x', unique(sp2$species)),
-         ylab = 'Threshold Value Exceeded', xlab = 'Year')
+         ylab = 'Proportion of KS Tests Significant', xlab = 'Year')
+    abline(h = ks_t, lty = 'dashed', col = 'blue') # Add significance threshold line
     abline(v = ks_p_df[min(which(emerged == 1)),'year'], lwd = 2, col = 'red') # Add Emerged Year
     text(y = 0.5, x = ks_p_df[min(which(emerged == 1)),'year'] + 4, label = paste('TOM:', ks_p_df[min(which(emerged == 1)),'year']), col = 'red')
 
@@ -171,4 +178,4 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   # Return data frame
   return(ks_p_df)
 
-} # end emp_mismatch function
+} # end KS mismatch function
