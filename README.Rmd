@@ -22,7 +22,7 @@ This package is designed to calculate, summarize, and plot Time of Emergence (To
 
 ## Installation
 
-You can install the development version of phenometrics from [GitHub](https://github.com/) with:
+You can install the development version of phenometrics from [GitHub](https://github.com/) with: 
 
 ``` r
 # install.packages("pak")
