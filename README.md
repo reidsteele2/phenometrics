@@ -20,12 +20,10 @@ community phenology as a whole.
 
 ## Installation
 
-You can install the development version of phenometrics from
-[GitHub](https://github.com/) with:
+The development version of phenometrics has been provided, and can be installed with:
 
 ``` r
-# install.packages("pak")
-pak::pak("reidsteele2/phenometrics")
+install.packages("/your_path/phenometrics.tar.gz")
 ```
 
 ## Example
