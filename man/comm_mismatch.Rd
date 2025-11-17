@@ -10,7 +10,7 @@ comm_mismatch(
   method = "empirical",
   emt = 5,
   base_y = 5,
-  quants = c(0.025, 0.975),
+  quants = c(0.25, 0.75),
   alpha = 0.05,
   ks_t = 0.6,
   nboot = 100,
