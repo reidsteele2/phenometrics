@@ -11,9 +11,10 @@
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param plot If TRUE, will generate a plot of test result against year.
 #' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
-#' @param alt Alternative hypothesis for emergence testing. Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.
+#' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.
 #' @param quants Quantiles of the detrended data used to determine the emergence threshold
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
 #' @export
@@ -38,7 +39,8 @@ emp_toee = function(data,    # Input data
                     max_y = 0, # Maximum year window, 0 = deactivated
                     alt = 'less', # KS Test sidedness
                     quants = c(0.25, 0.75),
-                    unemergence = F # if F, all years after first emergence are set to emergence
+                    unemergence = F, # if F, all years after first emergence are set to emergence
+                    ... # Additional arguments to feed to lm()
 ){
 
   # Final year in first max_y set
@@ -48,7 +50,7 @@ emp_toee = function(data,    # Input data
   if((iyear >= max(data$year)) | (max_y == 0)){
 
     # Fit linear model (arrival)
-    lm_ev = lm(env ~ year, data = data)
+    lm_ev = lm(env ~ year, data = data, ...)
 
     # Pull out slope
     lm_ev_summ = summary(lm_ev)
@@ -80,7 +82,7 @@ emp_toee = function(data,    # Input data
     data_f = dplyr::filter(data, year <= iyear)
 
     # Fit linear model (arrival)
-    lm_ev = lm(env ~ year, data = data_f)
+    lm_ev = lm(env ~ year, data = data_f, ...)
 
     # Pull out slope
     lm_ev_summ = summary(lm_ev)
@@ -105,7 +107,7 @@ emp_toee = function(data,    # Input data
       data_f = dplyr::filter(data, year %in% seq(slopes$year[i] - (max_y - 1), slopes$year[i], 1))
 
       # Fit linear model (arrival)
-      lm_ev = lm(env ~ year, data = data_f)
+      lm_ev = lm(env ~ year, data = data_f, ...)
 
       # Pull out slope
       lm_ev_summ = summary(lm_ev)
@@ -145,7 +147,7 @@ emp_toee = function(data,    # Input data
   if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > data_m$env)|(max(thresh) < data_m$env), 1, 0)}
 
   # Calculate emergence
-  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=0.5)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){

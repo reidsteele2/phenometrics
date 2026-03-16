@@ -13,7 +13,8 @@ ks_tom(
   ks_t = 0.6,
   nboot = 100,
   plot = T,
-  unemergence = F
+  unemergence = F,
+  ...
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ ks_tom(
 \item{plot}{If TRUE, will generate a plot of test result against year.}
 
 \item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+
+\item{...}{Additional arguments to feed to \code{lm()}}
 }
 \value{
 A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)

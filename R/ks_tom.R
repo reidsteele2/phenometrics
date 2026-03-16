@@ -10,13 +10,14 @@
 #'
 #' @param sp1 A data frame containing the time series to test for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
 #' @param sp2 A data frame containing the time series against which sp1 is compared for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
-#' @param alt Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
+#' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param alpha Significance value for KS test.
 #' @param ks_t Proportion of significant bootstrap KS tests required for a positive test result
 #' @param nboot Number of KS test bootstraps samples.
 #' @param plot If TRUE, will generate a plot of test result against year.
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
 #' @export
@@ -52,7 +53,8 @@ ks_tom = function(sp1,     # Input data for species 1
                   ks_t = 0.6, # KS test threshold
                   nboot = 100, # Number of bootstraps for ks testing
                   plot = T, # Plot results?
-                  unemergence = F # if F, all years after first emergence are set to emergence
+                  unemergence = F, # if F, all years after first emergence are set to emergence
+                  ... # Additional arguments to feed to lm()
 ){
 
   # gather year range
@@ -67,7 +69,7 @@ ks_tom = function(sp1,     # Input data for species 1
   sp2 = as.data.frame(dplyr::filter(sp2, (year >= min(yrange)) &  (year <= max(yrange))))
 
   # Fit linear model (arrival)
-  lm_ev_sp1 = lm(event ~ year, data = sp1)
+  lm_ev_sp1 = lm(event ~ year, data = sp1, ...)
 
   # Pull out slope
   lm_ev_summ_sp1 = summary(lm_ev_sp1)
@@ -78,7 +80,7 @@ ks_tom = function(sp1,     # Input data for species 1
   # abline(lm_ev, col = 'blue', lwd = 2)
 
   # Fit linear model (arrival)
-  lm_ev_sp2 = lm(event ~ year, data = sp2)
+  lm_ev_sp2 = lm(event ~ year, data = sp2, ...)
 
   # Pull out slope
   lm_ev_summ_sp2 = summary(lm_ev_sp2)
@@ -131,7 +133,7 @@ ks_tom = function(sp1,     # Input data for species 1
   } # End KS test loop
 
   # Calculate emergence
-  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=ks_t)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=ks_t)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){

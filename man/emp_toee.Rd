@@ -11,7 +11,8 @@ emp_toee(
   max_y = 0,
   alt = "less",
   quants = c(0.25, 0.75),
-  unemergence = F
+  unemergence = F,
+  ...
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ emp_toee(
 \item{quants}{Quantiles of the detrended data used to determine the emergence threshold}
 
 \item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+
+\item{...}{Additional arguments to feed to \code{lm()}}
 }
 \value{
 A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)

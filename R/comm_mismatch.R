@@ -8,7 +8,7 @@
 #' @description Calculate ToM metrics for all relevant species pairs in a dataset
 #'
 #' @param data A data frame containing the time series to test for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species').
-#' @param alt Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
+#' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
 #' @param method Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param base_y Number of years at the start of the time series to compare to ensure testing is appropraite. Species pairs will only be tested if the first base_y years event values are within 1 standard deviation.
@@ -17,6 +17,7 @@
 #' @param ks_t Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'.
 #' @param nboot Number of boostrapped KS tests to run. Unused if method = 'empirical'.
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame of species pairs with test result and emergence status for each individual year. Designed to feed into comm_mm_by_spp() and comm_mm_by_year() functions.
 #' @export
@@ -63,7 +64,9 @@ comm_mismatch = function(data,
                          alpha = 0.05, # Significance threshold for ks test
                          ks_t = 0.6, # KS test threshold
                          nboot = 100, # Number of bootstraps for ks testing
-                         unemergence = F){ # if F, all years after first emergence are set to emergence){
+                         unemergence = F, # if F, all years after first emergence are set to emergence){
+                         ... # Additional arguments to feed to lm()
+){
 
   # Pull out species names
   spp_list = unique(data$species)
@@ -135,7 +138,7 @@ comm_mismatch = function(data,
 
           # Run mismatch test
           mm = emp_tom(sp1_data, sp2_data, alt = alt, emt = emt, plot = F, unemergence = unemergence,
-                           quants = quants)
+                           quants = quants, ...)
 
         }
 
@@ -143,7 +146,7 @@ comm_mismatch = function(data,
 
           # Run mismatch test
           mm = ks_tom(sp1_data, sp2_data, alt = alt, emt = emt, plot = F, unemergence = unemergence,
-                           alpha = alpha, ks_t = ks_t, nboot = nboot)
+                           alpha = alpha, ks_t = ks_t, nboot = nboot, ...)
 
         }
 

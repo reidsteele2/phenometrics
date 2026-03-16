@@ -9,8 +9,8 @@
 #' @description Calculate ToPE and ToEE metrics for all species in a dataset
 #'
 #' @param data A data frame containing the time series to test for ToEE and ToPE. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), environmental condition of interest (column named 'env'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species').
-#' @param em_alt Alternative hypothesis for ToPE testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.
-#' @param dc_alt Alternative hypothesis for ToEE emergence testing. Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.
+#' @param em_alt Alternative hypothesis for ToPE testing ("two.sided", "less", or "greater"). Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.
+#' @param dc_alt Alternative hypothesis for ToEE emergence testing ("two.sided", "less", or "greater"). Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.
 #' @param method Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param quants Quantiles used for empirical testing. Unused if method = 'statistical'.
@@ -19,6 +19,7 @@
 #' @param nboot Number of boostrapped KS tests to run. Unused if method = 'empirical'.
 #' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param ... Additional arguments to feed to `lm()`
 
 #'
 #' @returns A data frame containing classification results for each species and year determined by ToPE and ToEE test results. Designed to feed into class_by_year() and class_by_species() functions.
@@ -59,8 +60,10 @@ community = function(data,
                      alpha = 0.05, # Significance threshold for ks test
                      ks_t = 0.6, # KS test threshold
                      nboot = 100, # Number of bootstraps for ks testing
-                     max_y = 0, # Rolling window option, 0 = no rolling window
-                     unemergence = F){ # if F, all years after first emergence are set to emergence
+                     max_y = 0, # Rolling window option, 0 = no rolling
+                     unemergence = F, # if F, all years after first emergence are set to emergence window
+                     ... # Additional arguments to feed to lm()
+){
 
   # Emergence - species curves
   em_curve = NULL
@@ -77,9 +80,9 @@ community = function(data,
 
       # Run individual curves
       em = cbind(species = unique(data$species)[i],
-                 ks_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, unemergence = unemergence, alpha = alpha, ks_t = ks_t, nboot = nboot))
+                 ks_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, unemergence = unemergence, alpha = alpha, ks_t = ks_t, nboot = nboot, ...))
       dc = cbind(species = unique(data$species)[i],
-                 ks_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, unemergence = unemergence, alpha = alpha, ks_t = ks_t, nboot = nboot))
+                 ks_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, unemergence = unemergence, alpha = alpha, ks_t = ks_t, nboot = nboot, ...))
 
     }
 
@@ -88,9 +91,9 @@ community = function(data,
 
       # Run individual curves
       em = cbind(species = unique(data$species)[i],
-                 emp_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, unemergence = unemergence, quants = quants))
+                 emp_tope(sp, plot = F, alt = em_alt, max_y = max_y, emt = emt, unemergence = unemergence, quants = quants, ...))
       dc = cbind(species = unique(data$species)[i],
-                 emp_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, unemergence = unemergence, quants = quants))
+                 emp_toee(sp, plot = F, alt = dc_alt, max_y = max_y, emt = emt, unemergence = unemergence, quants = quants, ...))
 
     }
 

@@ -13,7 +13,8 @@ ks_tope(
   plot = T,
   max_y = 0,
   alt = "greater",
-  unemergence = F
+  unemergence = F,
+  ...
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ ks_tope(
 \item{alt}{Alternative hypothesis for emergence testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
 
 \item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+
+\item{...}{Additional arguments to feed to \code{lm()}}
 }
 \value{
 A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)

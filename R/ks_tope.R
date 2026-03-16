@@ -13,8 +13,9 @@
 #' @param nboot Number of KS test bootstraps samples.
 #' @param plot If TRUE, will generate a plot of test result against year.
 #' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
-#' @param alt Alternative hypothesis for emergence testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.
+#' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
 #' @export
@@ -44,7 +45,8 @@ ks_tope = function(data,     # Input data
                    plot = T, # Plot results?
                    max_y = 0, # Maximum year window, 0 = deactivated
                    alt = 'greater', # KS Test sidedness
-                   unemergence = F # if F, all years after first emergence are set to emergence
+                   unemergence = F, # if F, all years after first emergence are set to emergence
+                   ... # Additional arguments to feed to lm()
 ){
 
   # Final year in first max_y set
@@ -54,7 +56,7 @@ ks_tope = function(data,     # Input data
   if((iyear >= max(data$year)) | (max_y == 0)){
 
     # Fit linear model (arrival)
-    lm_ev = lm(event ~ year, data = data)
+    lm_ev = lm(event ~ year, data = data, ...)
 
     # Pull out slope
     lm_ev_summ = summary(lm_ev)
@@ -81,7 +83,7 @@ ks_tope = function(data,     # Input data
     data_d$event = data_d$event-adj
 
     # Fit linear model (arrival)
-    lm_ev_d = lm(event ~ year, data = data_d)
+    lm_ev_d = lm(event ~ year, data = data_d, ...)
 
     # Pull out slope
     lm_ev_summ_d = summary(lm_ev_d)
@@ -97,7 +99,7 @@ ks_tope = function(data,     # Input data
     data_f = dplyr::filter(data, year <= iyear)
 
     # Fit linear model (arrival)
-    lm_ev = lm(event ~ year, data = data_f)
+    lm_ev = lm(event ~ year, data = data_f, ...)
 
     # Pull out slope
     lm_ev_summ = summary(lm_ev)
@@ -122,7 +124,7 @@ ks_tope = function(data,     # Input data
       data_f = dplyr::filter(data, year %in% seq(slopes$year[i] - (max_y - 1), slopes$year[i], 1))
 
       # Fit linear model (arrival)
-      lm_ev = lm(event ~ year, data = data_f)
+      lm_ev = lm(event ~ year, data = data_f, ...)
 
       # Pull out slope
       lm_ev_summ = summary(lm_ev)
@@ -144,7 +146,7 @@ ks_tope = function(data,     # Input data
     data_d$event = data_d$event-adj
 
     # Fit linear model (arrival)
-    lm_ev_d = lm(event ~ year, data = data_d)
+    lm_ev_d = lm(event ~ year, data = data_d, ...)
 
     # Pull out slope
     lm_ev_summ_d = summary(lm_ev_d)
@@ -171,7 +173,7 @@ ks_tope = function(data,     # Input data
   } # End KS test loop
 
   # Calculate emergence
-  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=ks_t)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=ks_t)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){

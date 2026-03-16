@@ -12,9 +12,10 @@
 #' @param sp2 A data frame containing the time series against which sp1 is compared for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param plot If TRUE, will generate a plot of test result against year.
-#' @param alt Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
+#' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
 #' @param quants Quantiles of the counterfactual data used to determine the emergence threshold
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
 #' @export
@@ -48,7 +49,8 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
                    # max_y = 0, # Maximum year window, 0 = deactivated
                    alt = 'two.sided', # KS Test sidedness
                    quants = c(0.25, 0.75),
-                   unemergence = F # if F, all years after first emergence are set to emergence
+                   unemergence = F, # if F, all years after first emergence are set to emergence
+                   ... # Additional arguments to feed to lm()
 ){
 
   # gather year range
@@ -63,7 +65,7 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   sp2 = as.data.frame(dplyr::filter(sp2, (year >= min(yrange)) &  (year <= max(yrange))))
 
   # Fit linear model (arrival)
-  lm_ev_sp1 = lm(event ~ year, data = sp1)
+  lm_ev_sp1 = lm(event ~ year, data = sp1, ...)
 
   # Pull out slope
   lm_ev_summ_sp1 = summary(lm_ev_sp1)
@@ -74,7 +76,7 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   # abline(lm_ev, col = 'blue', lwd = 2)
 
   # Fit linear model (arrival)
-  lm_ev_sp2 = lm(event ~ year, data = sp2)
+  lm_ev_sp2 = lm(event ~ year, data = sp2, ...)
 
   # Pull out slope
   lm_ev_summ_sp2 = summary(lm_ev_sp2)
@@ -125,7 +127,7 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > sp1_mean$event)|(max(thresh) < sp1_mean$event), 1, 0)}
 
   # Calculate emergence
-  emerged = data.table::frollapply(ks_p, n = emt, function(x){all(x>=0.5)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){

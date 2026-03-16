@@ -7,12 +7,17 @@ Description: This package contains functions to analyze phenological responses t
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Imports: 
     data.table,
     dplyr,
     ggplot2,
     graphics,
+    grDevices,
     magrittr,
     stats,
     tidyr
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
