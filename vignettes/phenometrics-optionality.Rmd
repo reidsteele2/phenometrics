@@ -1,11 +1,16 @@
 ---
-title: "phenometrics-optionality"
-output: rmarkdown::html_vignette
+title: "phenometrics"
+output: 
+  rmarkdown::html_vignette: 
+    toc: true
+    number_sections: true
 vignette: >
-  %\VignetteIndexEntry{phenometrics-optionality}
+  %\VignetteIndexEntry{phenometrics}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
+
+This vignette walks through the basic functionality of the `phenometrics` package, as well as various customizations built into it and how/when to use them.
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
@@ -14,6 +19,656 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
-library(phenometrics)
+```{r setup, message=FALSE}
+library(phenometrics, quietly = T)
+library(tidyverse, quietly = T)
+library(bruceR, quietly = T)
+knitr::opts_chunk$set(fig.width = 8, fig.height = 6)
+```
+
+# `phenometrics` basic functionality
+
+Unlike standard phenological analyses, which tend to focus on rates of change, `phenometrics` calculates Time of Emergence (ToE) metrics, which attempt to identify the exact point at which a species' phenology has exceeded its historical variability and emerged from its previous regime. The phenometrics package assumes input data is provided as a data frame, with standardized column names:
+
+\newline
+
+`year`: Year of the phenological event. `species`: Unique species identifier. Can be numeric or character. `event`: Time at which the phenological event occurs, typically in Julian day. `env`: Environmental conditions (usually temperature) at which the phenological event occurs.
+
+\newline
+
+## Time of Phenological Emergence
+
+The basic worker function in the `phenometrics` package is `emp_tope()`, which calculates the Time of Phenological Emergence (ToPE) for a species using empirical methodology.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))- seq(1,30,1)
+dataset = data.frame(year, event)
+
+# Calculate empirical time of phenological emergence (ToPE)
+head(emp_tope(dataset))
+
+```
+
+By default, this function outputs a data frame that contains the year, test value p (1 = positive test value, indicating that year has exceeded historical variability), emergence status (1 = emerged, 0 = not emerged). Emergence occurs once a certain number of consecutive years return positive test values (set to 5 by default). Unless told not to, it also generates a plot of test results against year, and if applicable, indicates the point at which emergence occurs.
+
+Alternatively, `ks_tope()` calculates ToPE using statistical methodology via bootstrapped Kolmogorov-Smirnov tests. This requires there to be replicates within each year to serve as the sample size for the test.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = rep(seq(1,30,1),30)
+event = round(rnorm(900, 100, 5)) - year
+dataset = data.frame(year, event) %>% arrange(year)
+
+# Calculate empirical time of phenological emergence (ToPE)
+head(ks_tope(dataset))
+
+```
+
+\newline
+
+## Time of Empirical Emergence
+
+The mirror function to `emp_tope()` is `emp_toee()` (and to `ks_tope()` is `ks_toee()`), which examines the environmental conditions a phenological event occurs at rather than its timing. We refer to this as the Time of Environmental Emergence (ToEE).
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = seq(1,30,1)
+env = (rnorm(30, 15, 0.5)) + seq(0.1,3,0.1)
+dataset = data.frame(year, env)
+
+# Calculate empirical time of phenological emergence (ToPE)
+emp_toee(dataset)
+
+# Create test dataset
+year = rep(seq(1,30,1),30)
+env = (rnorm(900, 15, 0.5)) + rep(seq(0.1,3,0.1), 30)
+dataset = data.frame(year, env) %>% arrange(year)
+
+# Calculate empirical time of phenological emergence (ToPE)
+head(ks_toee(dataset))
+
+```
+
+These functions perform the same analyses as `emp_tope()` and `ks_tope()`, but on the `env` column instead of the `event` column, and with the direction reversed (by default, ToPE functions look for declining trends in the time series, and ToEE functions look for increasing trends - this behaviour can be changed using the `alt` argument). Together, ToPE and ToEE can be used to classify a species' phenological response to climate change. For example, if a species emerges in ToPE but not ToEE, then it is shifting its phenology in time to maintain the environmental conditions of its phenology. Conversely, a species emerged in ToEE and not ToPE is doing the opposite: it is maintaing the timing of its phenology at the expense of changing environmental conditions under which it occurs.
+
+\newline
+
+## Community-level Analyses
+
+`phenometrics` also contains community-level functions that work as wrappers to `emp_tope()` and `emp_toee()` to perform many ToPE and ToEE calculations and summarize the results across multi-species datasets. `community()` calculates ToPE and ToEE for all unique species in a dataset, and generates classifications based on the results. `class_by_species` and `class_by_year` further summarize and plot these results. They use empirical methodology by default - this can be changed by setting `method = 'statistical'`.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset 1
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))- seq(1,30,1)
+env = (rnorm(30, 15, 0.5))
+species = 1
+sp1 = data.frame(year, species, event, env)
+
+# Create test dataset 2
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))
+env = (rnorm(30, 15, 0.5)) + seq(0.1,3,0.1)
+species = 2
+sp2 = data.frame(year, species, event, env)
+
+# combine
+dataset = as.data.frame(rbind(sp1, sp2))
+
+# Calculate empirical time of phenological emergence (ToPE)
+comm = community(dataset)
+
+# Summarize and plot results
+cbs = class_by_species(comm)
+cby = class_by_year(comm)
+
+```
+
+## Time of Mismatch
+
+Additionally, `phenometrics` can also use ToE methodology to determine the point at which phenological mismatch occurs between two species. We call this Time of Mismatch (ToM), and it can be calculated using the `emp_tom()` and `ks_tom()` functions.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset 1
+year = rep(seq(1,30,1), 30)
+event = round(rnorm(900, 100, 5)) - year
+species = 1
+sp1 = data.frame(year, species, event) %>% arrange(year)
+
+# Create test dataset 2
+event = round(rnorm(900, 100, 5))
+species = 2
+sp2 = data.frame(year, species, event) %>% arrange(year)
+
+# Plot species phenology time series
+ggplot(rbind(sp1, sp2), aes(x = year, y = event, color = as.factor(species))) + geom_point() + stat_smooth(method = 'lm')
+
+# Calculate empirical time of phenological emergence (ToPE)
+head(emp_tom(sp1, sp2))
+head(ks_tom(sp1, sp2))
+
+```
+
+You'll notice ToM results take a similar form to the ToPE and ToEE results. The similarities don't end there - `phenometrics` also contains community-level wrapper functions for multi-species mismatch datasets. `comm_mismatch()`, `comm_mm_by_spp()`, and `comm_mm_by_year()` are the mismatch equivalents to the above ToPE/ToEE-based functions. As with `class_by_species` and `class_by_year`, they use empirical methodology by default but this can be changed by setting `method = 'statistical'`.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset 1
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))- seq(1,30,1)
+env = (rnorm(30, 15, 0.5))
+species = 1
+sp1 = data.frame(year, species, event)
+
+# Create test dataset 2
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))
+species = 2
+sp2 = data.frame(year, species, event)
+
+# Create test dataset 3
+year = seq(1,30,1)
+event = round(rnorm(30, 95, 5))- seq(1,15,1)
+species = 3
+sp3 = data.frame(year, species, event)
+
+# combine
+dataset = rbind(sp1, sp2, sp3)
+
+# Calculate empirical time of phenological emergence (ToPE)
+comm_mm = comm_mismatch(dataset)
+
+# Summarize and plot results
+mm_cbs = comm_mm_by_spp(comm_mm)
+mm_cby = comm_mm_by_year(comm_mm)
+
+```
+
+`comm_mismatch` only tests species against each other if their event values are within one standard deviation of each other to avoid frivolous matching behaviour. `comm_mm_by_spp()` calculates and plots the proportion of relevant species in the dataset with which each species is mismatched in each year, while `comm_mm_by_year()` averages these values each year to calculate the average mismatch proportion of the entire community each year.
+
+\newline
+
+## Time Series Simulations
+
+The final function in the `phenometrics` package is `sim_ts()`, which is used to simulate future years of a phenology time series. It can be used to estimate the time of future emergence in cases where a trend exists, but emergence has not yet occurred.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = rep(seq(1,30,1), 10)
+event = round(rnorm(300, 100, 5))- rep(seq(1,30,1), 10)
+species = 1
+env = (rnorm(300, 15, 0.5))
+dataset = data.frame(year, species, event, env); dataset = dataset[order(dataset$year),]
+
+# Years to Simulate (10 more years)
+years_sim = max(year+1):max(year+10)
+
+# Run simulation
+data_sim = sim_ts(dataset, years_sim)
+
+# Add simulation identifier
+data_sim$simulated = ifelse(data_sim$year %in% years_sim, 'simulated', 'original')
+
+# Plot
+ggplot(data_sim, aes(x = year, y = event, color = simulated)) + geom_point()
+
+
+```
+
+If using this functionality, we recommend recalculating many simulated time series and summarizing the resulting ToE values in order to buffer for simulation randomness.
+
+\newline
+
+# Optionality and Advice for End-Users
+
+Ultimately, `phenometrics` is designed to be a broadly applicable collection of tools which calculate the point at which a time series' signal exceeds its noise (or in the case of ToM, when a time series' signal exceeds both its own noise and the signal of a comparison time series). However, with broad applicability comes a lack of specificity. It is important that end-users understand exactly what `phenometrics` is (and is not), and how they can modify the analyses it performs both within and without the package functions to tailor the tools within to their own study systems and research questions.
+
+## Directionality
+
+The directionality of the tests in `phenometrics` is controlled by the `alt` argument(s) within each function. By default, the package functions are set to look for advancing phenological trends (presuming springtime), increasing environmental variables (presuming increasing temperature), and mismatch in either direction. If these directions are not the direction of interest for the end-user, the `alt` argument should be changed to match. For example, take the case of a species delaying its autumn phenology:
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = seq(1,30,1)
+event = round(rnorm(30, 250, 5))+ seq(1,30,1)
+dataset = data.frame(year, event)
+plot(data = dataset, event ~ year, pch = 16)
+
+# Calculate empirical time of phenological emergence (ToPE)
+test = emp_tope(dataset)
+```
+
+Emergence is not detected because `emp_tope` defaults to looking for declining trends. This can be fixed by setting `alt = "less"` or `alt = "two.sided"`.
+
+```{r}
+# Calculate empirical time of phenological emergence (ToPE)
+less = emp_tope(dataset, alt = 'less')
+twoside = emp_tope(dataset, alt = 'two.sided')
+```
+
+End-users should be aware that `phenometrics` functions do not distinguish between increasing and decreasing time series when `alt = "two.sided"`, which may cause species with opposite trends to appear similarly in community-level functions. We generally recommend one-sided tests on ToPE and ToEE for this reason. Running two one-sided tests may be preferable to running one two-sided test.
+
+## Threshold Values
+
+Both statistical and empirical ToE tests rely on various threshold values to quantify emergence. Generally, we do not recommend changing the values of these thresholds from their defaults unless there is clear and convincing reason to do so (i.e. ToE clearly does not match visual inspection of the time series).
+
+### Empirical Thresholds
+
+Empirical ToE test sensitivity can be tuned using the `quants` parameter. By default, it is set to the 25% and 75% quantiles, meaning a positive test result occurs when the original time series drops below the 25% quantile or rises above the 75% quantile of the detrended counterfactual (conditional on the value of `alt`). Moving these values closer to 0 and 1 respectively requires a greater difference between the original time series and the counterfactual for a positive test result to occur, making the test more conservative (and vice versa).
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))- seq(1,30,1)
+dataset = data.frame(year, event)
+
+# Calculate empirical time of phenological emergence (ToPE)
+default = emp_tope(dataset)
+edited = emp_tope(dataset, quants = c(0.025, 0.975))
+```
+
+### Statistical Thresholds
+
+Statistical ToE test sensitivity is conditional on multiple parameters. `ks_t` is the proportion of bootstrapped KS tests which must be significant to return a positive test result, `alpha` is the significance test value of the KS test, and `nboot` is the number of bootstrap KS tests performed. Increasing `nboot` reduces differences between run-to-run results in exchange for longer run time. Increasing `ks_t` closer to 1 and/or reducing `alpha` closer to 0 makes the test more conservative (and vice versa), though it should be noted that `alpha = 0.05` is standard for statistical significance.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = rep(seq(1,30,1),30)
+event = round(rnorm(900, 100, 5)) - year
+dataset = data.frame(year, event) %>% arrange(year)
+
+# Calculate empirical time of phenological emergence (ToPE)
+default = ks_tope(dataset)
+edited = ks_tope(dataset, ks_t = 0.9)
+```
+
+### Emergence Threshold
+
+The emergence threshold, controlled by `emt`, is the number of consecutive positive test results required to define emergence. It is set to 5 years by default, which is typically used in ToE literature. Increasing this value may make emergence take longer to occur, and vice versa. Changing `emt` only changes emergence timing when one or more negative test results occur after a positive test result.
+
+By default, all years after first emergence are considered emerged. This is to prevent emergence being negated by stochastic events after emergence has already occurred. This behaviour can be deactivated by setting `unemergence = T`.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))- seq(1,30,1); event[14] = event[14] + 20
+dataset = data.frame(year, event)
+plot(dataset, event ~ year, pch = 16)
+
+# Calculate empirical time of phenological emergence (ToPE)
+default = emp_tope(dataset)
+edited = emp_tope(dataset, emt = 10)
+```
+
+## Baseline Construction
+
+One of the key features of *phenometrics* is that it creates a detrended counterfactual from the input time series. This serves as a baseline to test the original time series against for the purposes of quantifying emergence. This baseline construction methodology means that data doesn't need to be sacrificed to create a baseline to test against, and a stationary baseline can be generated even from time series which do not have any stationary period, both of which make this methodology preferable for short time series which have started well after the effects of climate change have begun.
+
+The construction of this baseline is absolutely critical to the process of calculating ToE. Changes to the baseline can have significant effects on whether or when emergence is detected. We provide a few different options around baseline construction to allow users some latitude to customize the methodology to their own individual datasets.
+
+By default, the detrended counterfactual is generated by fitting a linear model through the full time series, then subtracting its trend:
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))- seq(1,30,1)
+dataset = data.frame(year, event)
+
+# Calculate linear model
+event_lm = lm(data = dataset, event ~ year)
+
+# Generate correction to calculate detrended counterfactual
+correction = predict(event_lm, dataset) - predict(event_lm, dataset[dataset$year == min(dataset$year),])
+
+# Calculate detrended counterfactual
+counterfactual = dataset
+counterfactual$event = dataset$event-correction
+
+# Plot
+plot(data = dataset, event ~ year, pch = 16, ylim = c(60,115), col = 'red')
+abline(event_lm, lty = 'dashed', lwd = 1, col = 'red')
+points(data = counterfactual, event ~ year, pch = 16, col = 'blue')
+legend('bottomleft', col = c('red', 'blue'), legend = c('original', 'counterfactual'), pch = 16)
+```
+
+There are a few critical points about this base methodology that users should understand. The first is that by default, this method uses the entire length of the time series to create the counterfactual, meaning the counterfactual changes as data is added or removed. Secondly, because this detrending is performed with a linear model, **`phenometrics`** **assumes by default that the trend in the time series is linear**. If this assumption is incorrect the baseline will be poorly constructed, and emergence may not be defined properly. For example:
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+dataset = NULL
+year = seq(1,50,1)
+
+# Create a test dataset with 10 replicates
+for(i in 1:10){
+  event = c(round(rnorm(30, 100, 5))- seq(1,30,1), rnorm(20,70,5))
+  dataset_add = data.frame(year, event)
+  dataset = rbind(dataset_add, dataset)
+}
+
+# Reorder by year
+dataset = arrange(dataset, year)
+
+# Calculate linear model
+event_lm = lm(data = dataset, event ~ year)
+
+# Generate correction to calculate detrended counterfactual
+correction = predict(event_lm, dataset) - 
+  predict(event_lm, dataset[dataset$year == min(dataset$year),])
+
+# Calculate detrended counterfactual
+counterfactual = dataset
+counterfactual$event = dataset$event-correction
+
+# Plot
+plot(data = dataset, event ~ year, pch = 16, ylim = c(50,120), col = 'red')
+abline(event_lm, lty = 'dashed', lwd = 1, col = 'red')
+points(data = counterfactual, event ~ year, pch = 16, col = 'blue')
+legend('bottomleft', col = c('red', 'blue'), legend = c('original', 'counterfactual'), pch = 16)
+
+# Residuals vs fitted plot
+plot(event_lm, which = 1)
+
+```
+
+In this case, because the input data is not linear, the counterfactual is not flat throughout the time series. We recommend users check their data for linearity where it may be of concern using the residuals vs fitted plot, or similar. A misspecified counterfactual will always make empirical emergence take longer to occur than it otherwise would. Statistical methodology may be affected variably depending on the pattern. Here, it takes longer to occur because the counterfactual is closer to the original time series than it should be through the early part of the time series. However, this may not always be the case:
+
+```{r}
+# Set seed
+set.seed(1234)
+
+# Create test dataset
+dataset = NULL
+year = seq(1,50,1)
+
+# Create a test dataset with 10 replicates
+for(i in 1:10){
+  event = c(round(rnorm(20, 100, 5)), rnorm(30,100,5)- seq(1,30,1))
+  dataset_add = data.frame(year, event)
+  dataset = rbind(dataset_add, dataset)
+}
+
+# Reorder by year
+dataset = arrange(dataset, year)
+
+# Calculate linear model
+event_lm = lm(data = dataset, event ~ year)
+
+# Generate correction to calculate detrended counterfactual
+correction = predict(event_lm, dataset) - 
+  predict(event_lm, dataset[dataset$year == min(dataset$year),])
+
+# Calculate detrended counterfactual
+counterfactual = dataset
+counterfactual$event = dataset$event-correction
+
+# Plot
+plot(data = dataset, event ~ year, pch = 16, ylim = c(50,130), col = 'red')
+abline(event_lm, lty = 'dashed', lwd = 1, col = 'red')
+points(data = counterfactual, event ~ year, pch = 16, col = 'blue')
+legend('bottomleft', col = c('red', 'blue'), legend = c('original', 'counterfactual'), pch = 16)
+
+# Residuals vs fitted plot
+plot(event_lm, which = 1)
+
+# Run emergence
+test = ks_tope(dataset)
+test = emp_tope(dataset)
+```
+
+In this case, statistical emergence is detected within the first 20 years, despite the original time series being flat over that period. This is because the misspecification of the model caused the counterfactual to increase over the early part of the time series, causing a difference to be detected between the two despite no change in the original data. Meanwhile, empirical emergence is detected immediately because the pattern in the counterfactual has artifically increased the test quantiles to the point that the beginning of the time series is below the lower quantile.
+
+### Curvilinear Detrending
+
+As shown above, *phenometrics* performs detrending by fitting a model to the original time series, then subtracting the trend of that model. Hypothetically, this methodology could be performed using any model*.* In addition to the simple linear model default, we allow for the addition of an x\^2 term to the detrending model, making it curvilinear by setting `model = 'curvilinear'`. Curvilinear patterns are common in climate change-related data, and are much better at handling plateaus and other slope changes in the data such as the examples shown previously:
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+dataset = NULL
+year = seq(1,50,1)
+
+# Create a test dataset with 10 replicates
+for(i in 1:10){
+  event = c(round(rnorm(20, 100, 5)), rnorm(30,100,5)- seq(1,30,1))
+  dataset_add = data.frame(year, event)
+  dataset = rbind(dataset_add, dataset)
+}
+
+# Reorder by year
+dataset = arrange(dataset, year)
+
+# Calculate linear model
+event_lm = lm(data = dataset, event ~ year + I(year^2))
+
+# Generate correction to calculate detrended counterfactual
+correction = predict(event_lm, dataset) - 
+  predict(event_lm, dataset[dataset$year == min(dataset$year),])
+
+# Calculate detrended counterfactual
+counterfactual = dataset
+counterfactual$event = dataset$event-correction
+
+# Plot
+plot(data = dataset, event ~ year, pch = 16, ylim = c(50,130), col = 'red')
+points(data = counterfactual, event ~ year, pch = 16, col = 'blue')
+legend('bottomleft', col = c('red', 'blue'), legend = c('original', 'counterfactual'), pch = 16)
+
+# Residuals vs fitted plot
+plot(event_lm, which = 1)
+
+# Run emergence testing
+test = ks_tope(dataset, model = 'linear')
+test = emp_tope(dataset, model = 'linear')
+
+test = ks_tope(dataset, model = 'curvilinear')
+test = emp_tope(dataset, model = 'curvilinear')
+```
+
+### Limited Baseline
+
+One important difference between the statistical and empirical ToE methodologies is that the statistical methodology tests the original time series against the detrended counterfactual on an annual basis, while the empirical methodology tests each year of the original time series against test quantiles generated from the entire detrended counterfactual. As a result, the empirical method is more sensitive to time series length and variance patterns than the statistical method. This can cause changes in the exact year of emergence of a time series when data is added or removed from the end of the time series, even after emergence has already occurred. In some cases this behaviour may be desirable - for example, if adding further years to the time series brings the counterfactual closer to a more representative estimate of the amount of year-to-year variability in a species' phenology. In others, it may be undesirable, such as if changing variability in a species phenology is driven by climate change, or by changes in sampling protocol.
+
+As a method of controlling for these changes, we have included functionality in the empirical ToE tests to limit the baseline period of the detrended counterfactual used to calculate the test quantiles. This is performed through a combination of the `max_y` and `baseline` arguments. `max_y` represents the maximum number of years used to calculated the baseline period (by default it is set to 0, which deactivates this functionality and uses the whole time series). Setting `baseline = 'static'` (the default) ensures the baseline used to test each year does not change (see next section for more details). This can also be used to handle nonlinear patterns in the data, so long as the data is linear across the baseline period used to calculate the test quantiles. For example, reusing the dataset from above:
+
+```{r}
+# Run emergence testing
+test = emp_tope(dataset)
+test = emp_tope(dataset, max_y = 20, baseline = 'static')
+```
+
+In this example, the counterfactual is misspecified using the default settings because the linearity assumption is violated, leading to an expansion of the test quantiles, and no emergence being detected. However, limiting the baseline to the first 20 years over which the data is linear and the assumption is not violated allows us to detect emergence properly.
+
+This functionality is not built into the statistical method because a) the statistical method performs year-to-year testing, which is incompatible with a static limited baseline, and b) the statistical method is not systematically sensitive to problems this functionality attempts to solve, assuming all other assumptions of the methodology are met. If users are concerned about ToE values changing due to the addition of future data via small changes in the value of the trend, this can be prevented by passing the `subset` argument to `lm()` inside the statistical emergence functions. This argument may be implemented to limit which years are used to fit the linear models inside the function, and thus detrend the counterfactual. However, users should note that doing so may make the model more susceptible to misspecification, and should ensure there is no trend in the residuals when fitting new data using the subsetted model.
+
+### Moving Window
+
+In some unique cases, users may have a very long time series which contains multiple patterns. In such cases, users may be interested in these changing patterns - for example, if a species phenology emerges, and then settles into a new stable period. To handle cases such as these, we have built in functionality to apply our methodology across a moving window. As in the limited baseline case, the length of the moving window is determined by the `max_y` parameter, which represents the maximum number of years used in the moving window (by default it is set to 0, which deactivates this functionality and uses the whole time series). To enable the moving window approach for empirical tests, users must also set `baseline = 'moving'`. As there is no static limited baseline approach in the statistical methodology, setting `max_y` to any value greater than 0 will activate the moving window approach.
+
+For example, if `max_y = 20` (and `baseline = 'moving'` if relevant) the methodology will calculate emergence for the first 20 years of the time series as if only given the first 20 years. Year 21 will be calculated as if given years 2 to 21, year 22 as if given years 3 to 22, and so on to the end of the time series.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+dataset = NULL
+year = seq(1,80,1)
+
+# Create a test dataset with 10 replicates
+for(i in 1:10){
+  event = c(round(rnorm(30, 100, 5))- seq(0.5,15,0.5), rnorm(50,85,5))
+  dataset_add = data.frame(year, event)
+  dataset = rbind(dataset_add, dataset)
+}
+
+# Plot data
+plot(data = dataset, event ~ year, pch = 16)
+
+# Reorder by year
+dataset = arrange(dataset, year)
+
+# Run emergence tests
+test = ks_tope(dataset)
+test = emp_tope(dataset, max_y = 20, baseline = 'static')
+
+test = ks_tope(dataset, max_y = 20, unemergence = T)
+test = emp_tope(dataset, max_y = 20, baseline = 'moving', unemergence = T)
+```
+
+In this scenario, the default statistical test is misspecified because the assumption of linearity is violated, leading to a poorly estimated ToE value which occurs while the time series is actually static. The empirical test with a static baseline is not misspecified and detects emergence at the correct time, but does not detect the return to a stationary state later in the time series. Using the moving window approach, both methodologies are able to detect both the original emergence in the first 30 years, and the subsequent return to a static state over the last 50. Note that both methods may be misspecified temporarily while the moving window contains both the changing and static state. The degree to which this occurs depends on how gradually or sharply the slope of the time series changes over time.
+
+## Data Corrections and Considerations
+
+When considering input data, corrections, and model assumptions, we recommend end-users conceptualize individual `phenometrics` ToE functions the same as they would linear models. Any changes made to raw data fed into ToE functions will be carried through ToE calculations and into the end result. End-users may leverage this to correct for issues in their data (e.g. bias, differences in uncertainty, etc.) as they would for a linear model. We provide some examples below that we believe may be generally applicable.
+
+### Group Bias
+
+End-users who have grouped data may be subject to bias across groups, leading to emergence being incorrectly identified, or identified at the wrong time.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+g1 = data.frame(year = seq(1,30,1), event = round(rnorm(30, 100, 5)), group = '1')
+g2 = data.frame(year = seq(11,30,1), event = round(rnorm(20, 80, 5)), group = '2')
+g3 = data.frame(year = seq(21,30,1), event = round(rnorm(10, 60, 5)), group = '3')
+dataset = rbind(g1,g2,g3)
+
+# Plot
+ggplot(dataset, aes(x = year, y = event, color = group)) + 
+  geom_point() + geom_smooth(method = 'lm') +
+  geom_smooth(inherit.aes = F, data = dataset, aes(x = year, y = event), method = 'lm')
+  
+
+# Calculate empirical time of phenological emergence (ToPE)
+default = emp_tope(dataset)
+```
+
+Despite no trend in any of these groups, emergence occurs because there is an overall trend when the data is pooled due to differences in each group's baseline, and when they are sampled (Note that this also fools a linear model this dataset if group is not included). This can be corrected by adjusting the input data entered into the ToPE function. For example, we can run ToPE after peformed group mean centering:
+
+```{r}
+library(bruceR, quietly = T)
+# Calculate group mean center
+dataset$event_original = dataset$event
+dataset$event = group_mean_center(dataset, vars = 'event', by = 'group')$event
+
+# Plot
+ggplot(dataset, aes(x = year, y = event, color = group)) + 
+  geom_point() + geom_smooth(method = 'lm') +
+  geom_smooth(inherit.aes = F, data = dataset, aes(x = year, y = event), method = 'lm')
+
+# Calculate empirical time of phenological emergence (ToPE)
+default = emp_tope(dataset) # Emergence does not occur
+```
+
+### Weighting
+
+The Toe functions in `phenometrics` can carry any argument to `lm()`, with the exception of `formula` and `data`, which are fixed. One potential use of this functionality is to feed weights to the linear models inside the ToE functions, which are used to calculate the detrended counterfactual. This **does not** affect how each point is used in calculating test results, but it **does** affect how each point is used in calculating the baseline.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = seq(1,30,1)
+event = round(rnorm(30, 100, 5))- seq(1,30,1)
+dataset = data.frame(year, event)
+plot(data = dataset, event ~ year)
+abline(lm(data = dataset, event ~ year))
+abline(lm(data = dataset, event ~ year, weights = c(rep(1,7), rep(0,23))), col = 'red')
+
+# Calculate empirical time of phenological emergence (ToPE)
+default = emp_tope(dataset)
+weighted = emp_tope(dataset, weights = c(rep(1,7), rep(0,23)))
+```
+
+Users may use this functionality in the same way they would (or would not) for a standard linear model.
+
+### Resampling
+
+By default, `phenometrics` does not calculate uncertainty in ToE values, as uncertainty in the dataset provided is baked into the ToE value itself. One method by which end-users may calculate uncertainty in ToE values if they are interested in doing so is by resampling. For example, end-users may bootstrap each year in a dataset to generate a distribution of ToE values.
+
+```{r}
+# Set seed
+set.seed(12345)
+
+# Create test dataset
+year = rep(seq(1,30,1),30)
+event = round(rnorm(900, 100, 5)) - year
+dataset = data.frame(year, event) %>% arrange(year)
+
+em_boot = NULL
+nboot = 1000
+
+# bootstrap each year
+for(i in 1:nboot){
+  
+  data_boot = NULL
+  
+  # bootstrap each year
+  for(y in 1:length(dataset$year)){
+    
+    data_year = dataset[dataset$year == y,]
+    data_year_boot = data_year[sample(1:nrow(data_year), nrow(data_year), replace = T),]
+    data_boot = rbind(data_boot, data_year_boot)
+    
+  }
+  
+  # Run emergence test
+  em = emp_tope(data_boot, plot = F)
+  
+  # Calculate emergence year
+  em_year = min(em[em$emerged == 1,'year'], na.rm = T)
+  
+  # Concatenate result
+  em_boot = c(em_boot, em_year)
+  
+}
+
+# ToE Distribution
+hist(em_boot)
+
 ```

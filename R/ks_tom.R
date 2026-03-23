@@ -17,6 +17,7 @@
 #' @param nboot Number of KS test bootstraps samples.
 #' @param plot If TRUE, will generate a plot of test result against year.
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param model Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.
 #' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
@@ -48,14 +49,18 @@ ks_tom = function(sp1,     # Input data for species 1
                   sp2,     # Input data for species 2
                   alt = 'two.sided',     # Alternative hypothesis for ks test: greater, less, 2 sided
                   emt = 5, # Emergence threshold (number of years for emergence)
-                  # max_y = 0, # moving window, 0 = deactivated
                   alpha = 0.05, # Significance threshold for ks test
                   ks_t = 0.6, # KS test threshold
                   nboot = 100, # Number of bootstraps for ks testing
                   plot = T, # Plot results?
                   unemergence = F, # if F, all years after first emergence are set to emergence
+                  model = 'linear', # model used for detrending. 'linear' or 'curvilinear'.
                   ... # Additional arguments to feed to lm()
 ){
+
+  # Add error messages for invalid selections
+  if(!alt %in% c("two.sided", "less", "greater")){stop('alt setting not recognized')}
+  if(!model %in% c("linear", "curvilinear")){stop('model setting not recognized')}
 
   # gather year range
   sp1_yr = range(sp1$year)
@@ -68,51 +73,30 @@ ks_tom = function(sp1,     # Input data for species 1
   sp1 = as.data.frame(dplyr::filter(sp1, (year >= min(yrange)) &  (year <= max(yrange))))
   sp2 = as.data.frame(dplyr::filter(sp2, (year >= min(yrange)) &  (year <= max(yrange))))
 
-  # Fit linear model (arrival)
-  lm_ev_sp1 = lm(event ~ year, data = sp1, ...)
+  # Fit linear models (event timing)
+  if(model == 'linear'){
 
-  # Pull out slope
-  lm_ev_summ_sp1 = summary(lm_ev_sp1)
-  lm_ev_b_sp1 = lm_ev_summ_sp1$coefficients['year','Estimate']
+    lm_ev_sp1 = lm(event ~ year, data = sp1, ...)
+    lm_ev_sp2 = lm(event ~ year, data = sp2, ...)
 
-  # # Plot LM
-  # plot(event ~ year, data = sp1, pch = 16)
-  # abline(lm_ev, col = 'blue', lwd = 2)
+  } else if(model == 'curvilinear'){
 
-  # Fit linear model (arrival)
-  lm_ev_sp2 = lm(event ~ year, data = sp2, ...)
+    lm_ev_sp1 = lm(event ~ year + I(year^2), data = sp1, ...)
+    lm_ev_sp2 = lm(event ~ year + I(year^2), data = sp2, ...)
 
-  # Pull out slope
-  lm_ev_summ_sp2 = summary(lm_ev_sp2)
-  lm_ev_b_sp2 = lm_ev_summ_sp2$coefficients['year','Estimate']
+  }
 
-  # # Plot LM
-  # plot(event ~ year, data = sp2, pch = 16)
-  # abline(lm_ev_d, col = 'blue', lwd = 2)
-
-
-
-  # Gather years
-  years = seq(yrange[1], yrange[2], 1)
-
-  # Adjust year to order
-  years_0 = years-min(years)
-
-  # Generate match index
-  ind_sp1 = match(sp1$year, years)
-  ind_sp2 = match(sp2$year, years)
+  # Collect baselines
+  base_sp1 = predict(lm_ev_sp1, newdata = data.frame(year = min(sp1_yr)))
+  base_sp2 = predict(lm_ev_sp2, newdata = data.frame(year = min(sp2_yr)))
 
   # Calculate adjustment
-  adj_sp1 = (ind_sp1-1)*(lm_ev_b_sp1)
-  adj_sp1tosp2 = (ind_sp1-1)*(lm_ev_b_sp2)
-  adj_sp2 = (ind_sp2-1)*(lm_ev_b_sp2)
-  adj_sp2tosp1 = (ind_sp2-1)*(lm_ev_b_sp1)
+  adj_sp1 = predict(lm_ev_sp1, newdata = sp1) - base_sp1
+  adj_sp1tosp2 = predict(lm_ev_sp2, newdata = sp1) - base_sp2
 
   # Swap Species
   sp1_mm = sp1
   sp1_mm$event = sp1_mm$event - adj_sp1 + adj_sp1tosp2
-  sp2_mm = sp2
-  sp2_mm$event = sp2_mm$event - adj_sp2 + adj_sp2tosp1
 
   # Run ks tests
 

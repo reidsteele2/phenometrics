@@ -10,10 +10,12 @@
 #' @param data A data frame containing the time series to test for ToEE. Must contain year (column named 'year') and environmental condition of interest (column named 'env').
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param plot If TRUE, will generate a plot of test result against year.
-#' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
+#' @param max_y Length of baseline window used to generate detrended counterfactual. If 0 uses all years, else uses maximum of max_y years.
 #' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.
 #' @param quants Quantiles of the detrended data used to determine the emergence threshold
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param model Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.
+#' @param baseline Static or moving baseline used to generate detrended counterfactual. If 'static', same baseline is used for all years tested. If 'moving', baseline moves with test year.
 #' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
@@ -40,65 +42,92 @@ emp_toee = function(data,    # Input data
                     alt = 'less', # KS Test sidedness
                     quants = c(0.25, 0.75),
                     unemergence = F, # if F, all years after first emergence are set to emergence
+                    model = 'linear', # model used for detrending. 'linear' or 'curvilinear'.
+                    baseline = 'static', # Static or moving baseline. 'static' or 'moving'.
                     ... # Additional arguments to feed to lm()
 ){
+
+  # Add error messages for invalid selections
+  if(!alt %in% c("two.sided", "less", "greater")){stop('alt setting not recognized')}
+  if(!model %in% c("linear", "curvilinear")){stop('model setting not recognized')}
+  if(!baseline %in% c("static", "moving")){stop('baseline setting not recognized')}
 
   # Final year in first max_y set
   iyear = min(data$year) + max_y - 1
 
   # Use all years if may_y is deactivated or there are fewer than max_y years
-  if((iyear >= max(data$year)) | (max_y == 0)){
+  if((iyear >= max(data$year)) | (baseline == 'static')){
 
-    # Fit linear model (arrival)
-    lm_ev = lm(env ~ year, data = data, ...)
+    # Warn if baseline is moving
+    if(baseline == 'moving'){warning('Moving window is equal to or greater than time series length. Double-check max_y parameter.')}
 
-    # Pull out slope
-    lm_ev_summ = summary(lm_ev)
-    lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
+    # If max_y is set, filter years
+    if(max_y > 0){
 
-    # # Plot LM
-    # plot(env ~ year, data = data, pch = 16)
-    # abline(lm_ev, col = 'blue', lwd = 2)
+      # Filter to years less than or equal to iyear
+      data_base = data[data$year <= iyear,]
 
-    # Gather years
-    years = unique(data$year)
+    } else {
 
-    # Adjust year to order
-    years_0 = years-min(years)
+      # Take all years
+      data_base = data
 
-    # Generate match index
-    ind = match(data$year, years)
+    } # End max_y if/else
+
+    # Fit linear model (environment)
+    if(model == 'linear'){
+
+      lm_ev = lm(env ~ year, data = data_base, ...)
+
+    } else if(model == 'curvilinear'){
+
+      lm_ev = lm(env ~ year + I(year^2), data = data_base, ...)
+
+    }
+
+    # prediction values at data points
+    abs_preds = predict(lm_ev, newdata = data_base)
+
+    # calculate baseline value
+    baseline_val = predict(lm_ev, newdata = data.frame(year = min(data_base$year)))
 
     # Calculate adjustment
-    adj = (ind-1)*lm_ev_b
+    adj = abs_preds - baseline_val
 
     # Detrend
-    data_d = data
+    data_d = data_base
     data_d$env = data_d$env-adj
 
-  } else {
+  } else if(baseline == 'moving'){
+
+    # Save years
+    years = unique(data$year)
+
+    # set data for baseline
+    data_base = data
 
     # Run initial years
     data_f = dplyr::filter(data, year <= iyear)
 
-    # Fit linear model (arrival)
-    lm_ev = lm(env ~ year, data = data_f, ...)
+    # Fit linear model (environment)
+    if(model == 'linear'){
 
-    # Pull out slope
-    lm_ev_summ = summary(lm_ev)
-    lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
+      lm_ev = lm(env ~ year, data = data_f, ...)
 
-    # Gather years
-    years = unique(data$year)
+    } else if(model == 'curvilinear'){
 
-    # Adjust year to order
-    years_0 = years-min(years)
+      lm_ev = lm(env ~ year + I(year^2), data = data_f, ...)
 
-    # create slope container data frame
-    slopes = data.frame(year = years, ind = years_0, adj = NA)
+    }
 
-    # Add relevant adjustments
-    slopes$adj = ifelse(slopes$year <= iyear, slopes$ind*lm_ev_b, NA)
+    # calculate baseline value
+    baseline_val = predict(lm_ev, newdata = data.frame(year = min(data_f$year)))
+
+    # create adjustment container data frame
+    slopes = data.frame(year = unique(data_base$year), adj = NA)
+
+    # Calculate adjustment for years before moving window
+    slopes[slopes$year<=iyear,'adj'] = predict(lm_ev, slopes[slopes$year<=iyear,])-baseline_val
 
     # Loop through remaining years
     for(i in which(is.na(slopes$adj))){
@@ -106,15 +135,25 @@ emp_toee = function(data,    # Input data
       # filter data to relevant years
       data_f = dplyr::filter(data, year %in% seq(slopes$year[i] - (max_y - 1), slopes$year[i], 1))
 
-      # Fit linear model (arrival)
-      lm_ev = lm(env ~ year, data = data_f, ...)
+      # Fit linear model (environment)
+      if(model == 'linear'){
 
-      # Pull out slope
-      lm_ev_summ = summary(lm_ev)
-      lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
+        lm_ev = lm(env ~ year, data = data_f, ...)
+
+      } else if(model == 'curvilinear'){
+
+        lm_ev = lm(env ~ year + I(year^2), data = data_f, ...)
+
+      }
+
+      # prediction values at data points
+      abs_preds = predict(lm_ev,newdata = data.frame(year = max(data_f$year)))
+
+      # calculate baseline value
+      baseline_val = predict(lm_ev, newdata = data.frame(year = min(data_f$year)))
 
       # Enter adjustment
-      slopes$adj[i] = lm_ev_b * (max_y-1)
+      slopes$adj[i] = abs_preds-baseline_val
 
     } # End loop through slopes
 
@@ -125,26 +164,65 @@ emp_toee = function(data,    # Input data
     adj = slopes$adj[ind]
 
     # Detrend
-    data_d = data
+    data_d = data_base
     data_d$env = data_d$env-adj
 
   } # End else
 
-  # Calculate annual means of data and detrended data
-  data_m = dplyr::group_by(data, year) %>% dplyr::summarize(env = mean(env))
-  data_d_m = dplyr::group_by(data_d, year) %>% dplyr::summarize(env = mean(env))
+  # If baseline is static, calculate emergence together
+  if(baseline == 'static'){
 
-  # Calculate quantiles of interest
-  for(i in 1:length(quants)){thresh = c(quantile(data_d_m$env, min(quants)), quantile(data_d_m$env, max(quants)))}
+    # Calculate annual means of data and detrended data
+    data_m = dplyr::group_by(data, year) %>% dplyr::summarize(env = mean(env))
+    data_d_m = dplyr::group_by(data_d, year) %>% dplyr::summarize(env = mean(env))
 
-  # If alt = greater, check if the minimum threshold is greater than each individual year
-  if(alt == 'greater'){ks_p = ifelse(min(thresh) > data_m$env, 1, 0)}
+    # Calculate quantiles of interest
+    for(i in 1:length(quants)){thresh = c(quantile(data_d_m$env, min(quants)), quantile(data_d_m$env, max(quants)))}
 
-  # If alt = lesser, check if the maximum threshold is less than each individual year
-  if(alt == 'less'){ks_p = ifelse(max(thresh) < data_m$env, 1, 0)}
+    # If alt = greater, check if the minimum threshold is greater than each individual year
+    if(alt == 'greater'){ks_p = ifelse(min(thresh) > data_m$env, 1, 0)}
 
-  # if alt = two.sided, check both
-  if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > data_m$env)|(max(thresh) < data_m$env), 1, 0)}
+    # If alt = lesser, check if the maximum threshold is less than each individual year
+    if(alt == 'less'){ks_p = ifelse(max(thresh) < data_m$env, 1, 0)}
+
+    # if alt = two.sided, check both
+    if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > data_m$env)|(max(thresh) < data_m$env), 1, 0)}
+
+    # If baseline is moving, calculate thresholds for each window
+  } else if (baseline == 'moving'){
+
+    # initialize ks_p
+    ks_p = rep(NA, length(unique(data$year)))
+
+    # loop through years starting highest year less than or equal to iyear
+    for(y in unique(data$year)[unique(data$year) >= max(unique(data$year)[unique(data$year) <= iyear])]){
+
+      # Calculate minimum year
+      minyear = y - max_y + 1
+
+      # Calculate annual means of data and detrended data
+      data_m = dplyr::group_by(data[data$year %in% (minyear:y),], year) %>% dplyr::summarize(env = mean(env))
+      data_d_m = dplyr::group_by(data_d[data_d$year %in% (minyear:y),], year) %>% dplyr::summarize(env = mean(env))
+
+      # Calculate quantiles of interest
+      for(i in 1:length(quants)){thresh = c(quantile(data_d_m$env, min(quants)), quantile(data_d_m$env, max(quants)))}
+
+      # Calculate index for filling test values
+      test_ind = which((unique(data$year) <= y) & (is.na(ks_p)))
+
+      # If alt = greater, check if the minimum threshold is greater than each individual year
+      if(alt == 'greater'){ks_p[test_ind] = ifelse(min(thresh) > data_m[data_m$year == unique(data$year)[test_ind],'env'], 1, 0)}
+
+      # If alt = lesser, check if the maximum threshold is less than each individual year
+      if(alt == 'less'){ks_p[test_ind] = ifelse(max(thresh) < data_m[data_m$year == unique(data$year)[test_ind],'env'], 1, 0)}
+
+      # if alt = two.sided, check both
+      if(alt == 'two.sided'){ks_p[test_ind] = ifelse((min(thresh) > data_m[data_m$year == unique(data$year)[test_ind],'env'])|
+                                                       (max(thresh) < data_m[data_m$year == unique(data$year)[test_ind],'env']), 1, 0)}
+
+    } # End iyear for loop
+
+  } # End moving baseline if
 
   # Calculate emergence
   emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5)}, align = 'left')
@@ -186,7 +264,7 @@ emp_toee = function(data,    # Input data
          main = unique(data$species),
          ylab = 'Threshold Value Exceeded', xlab = 'Year')
     abline(v = ks_p_df[min(which(emerged == 1)),'year'], lwd = 2, col = 'red') # Add Emerged Year
-    text(y = 0.5, x = ks_p_df[min(which(emerged == 1)),'year'] + 4, label = paste('TOD:', ks_p_df[min(which(emerged == 1)),'year']), col = 'red')
+    text(y = 0.5, x = ks_p_df[min(which(emerged == 1)),'year'] + 4, label = paste('TOE:', ks_p_df[min(which(emerged == 1)),'year']), col = 'red')
 
   } # End plot if
 

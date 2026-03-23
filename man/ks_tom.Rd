@@ -14,6 +14,7 @@ ks_tom(
   nboot = 100,
   plot = T,
   unemergence = F,
+  model = "linear",
   ...
 )
 }
@@ -22,7 +23,7 @@ ks_tom(
 
 \item{sp2}{A data frame containing the time series against which sp1 is compared for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').}
 
-\item{alt}{Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.}
+\item{alt}{Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.}
 
 \item{emt}{Number of consecutive years of positive test results required to define emergence.}
 
@@ -35,6 +36,8 @@ ks_tom(
 \item{plot}{If TRUE, will generate a plot of test result against year.}
 
 \item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+
+\item{model}{Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.}
 
 \item{...}{Additional arguments to feed to \code{lm()}}
 }

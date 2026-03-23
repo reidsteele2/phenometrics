@@ -4,39 +4,18 @@
 \alias{comm_mismatch}
 \title{Community ToM Metrics}
 \usage{
-comm_mismatch(
-  data,
-  alt = "two.sided",
-  method = "empirical",
-  emt = 5,
-  base_y = 5,
-  quants = c(0.25, 0.75),
-  alpha = 0.05,
-  ks_t = 0.6,
-  nboot = 100,
-  unemergence = F
-)
+comm_mismatch(data, alt = "two.sided", method = "empirical", base_y = 5, ...)
 }
 \arguments{
 \item{data}{A data frame containing the time series to test for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species').}
 
-\item{alt}{Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.}
+\item{alt}{Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.}
 
 \item{method}{Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.}
 
-\item{emt}{Number of consecutive years of positive test results required to define emergence.}
-
 \item{base_y}{Number of years at the start of the time series to compare to ensure testing is appropraite. Species pairs will only be tested if the first base_y years event values are within 1 standard deviation.}
 
-\item{quants}{Quantiles used for empirical testing. Unused if method = 'statistical'.}
-
-\item{alpha}{Alpha value used to determine significance for statistical testing. Unused if method = 'empirical'.}
-
-\item{ks_t}{Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'.}
-
-\item{nboot}{Number of boostrapped KS tests to run. Unused if method = 'empirical'.}
-
-\item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+\item{...}{Additional arguments to feed to ToM functions (\code{ks_tom}, \code{emp_tom})}
 }
 \value{
 A data frame of species pairs with test result and emergence status for each individual year. Designed to feed into comm_mm_by_spp() and comm_mm_by_year() functions.

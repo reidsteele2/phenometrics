@@ -12,9 +12,11 @@
 #' @param sp2 A data frame containing the time series against which sp1 is compared for ToM. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event').
 #' @param emt Number of consecutive years of positive test results required to define emergence.
 #' @param plot If TRUE, will generate a plot of test result against year.
+#' @param max_y Maximum number of years used to generate the detrended counterfactual. Deactivated (uses full time series) if set to 0.
 #' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.
 #' @param quants Quantiles of the counterfactual data used to determine the emergence threshold
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param model Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.
 #' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
@@ -46,12 +48,17 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
                    sp2,     # Input data for species 2 (comparison species)
                    emt = 5,  # Emergence threshold (number of years for emergence)
                    plot = T, # Plot results?
-                   # max_y = 0, # Maximum year window, 0 = deactivated
-                   alt = 'two.sided', # KS Test sidedness
+                   max_y = 0, # Maximum number of years used for baseline calculations, 0 = deactivated
+                   alt = 'two.sided', # Test sidedness
                    quants = c(0.25, 0.75),
                    unemergence = F, # if F, all years after first emergence are set to emergence
+                   model = 'linear', # model used for detrending. 'linear' or 'curvilinear'.
                    ... # Additional arguments to feed to lm()
 ){
+
+  # Add error messages for invalid selections
+  if(!alt %in% c("two.sided", "less", "greater")){stop('alt setting not recognized')}
+  if(!model %in% c("linear", "curvilinear")){stop('model setting not recognized')}
 
   # gather year range
   sp1_yr = range(sp1$year)
@@ -64,67 +71,67 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   sp1 = as.data.frame(dplyr::filter(sp1, (year >= min(yrange)) &  (year <= max(yrange))))
   sp2 = as.data.frame(dplyr::filter(sp2, (year >= min(yrange)) &  (year <= max(yrange))))
 
-  # Fit linear model (arrival)
-  lm_ev_sp1 = lm(event ~ year, data = sp1, ...)
+  # Calculate baseline range
+  if(max_y == 0){yrange_base = yrange} else {yrange_base = min(yrange) + max_y - 1}
 
-  # Pull out slope
-  lm_ev_summ_sp1 = summary(lm_ev_sp1)
-  lm_ev_b_sp1 = lm_ev_summ_sp1$coefficients['year','Estimate']
+  # Fit linear models (event timing)
+  if(model == 'linear'){
 
-  # # Plot LM
-  # plot(event ~ year, data = sp1, pch = 16)
-  # abline(lm_ev, col = 'blue', lwd = 2)
+    lm_ev_sp1 = lm(event ~ year, data = sp1[sp1$year <= max(yrange_base),], ...)
+    lm_ev_sp2 = lm(event ~ year, data = sp2[sp1$year <= max(yrange_base),], ...)
 
-  # Fit linear model (arrival)
-  lm_ev_sp2 = lm(event ~ year, data = sp2, ...)
+  } else if(model == 'curvilinear'){
 
-  # Pull out slope
-  lm_ev_summ_sp2 = summary(lm_ev_sp2)
-  lm_ev_b_sp2 = lm_ev_summ_sp2$coefficients['year','Estimate']
+    lm_ev_sp1 = lm(event ~ year + I(year^2), data = sp1[sp1$year <= max(yrange_base),], ...)
+    lm_ev_sp2 = lm(event ~ year + I(year^2), data = sp2[sp1$year <= max(yrange_base),], ...)
 
-  # # Plot LM
-  # plot(event ~ year, data = sp2, pch = 16)
-  # abline(lm_ev_d, col = 'blue', lwd = 2)
+  }
 
-
-
-  # Gather years
-  years = seq(yrange[1], yrange[2], 1)
-
-  # Adjust year to order
-  years_0 = years-min(years)
-
-  # Generate match index
-  ind_sp1 = match(sp1$year, years)
-  ind_sp2 = match(sp2$year, years)
+  # Collect baselines
+  base_sp1 = predict(lm_ev_sp1, newdata = data.frame(year = min(sp1_yr)))
+  base_sp2 = predict(lm_ev_sp2, newdata = data.frame(year = min(sp2_yr)))
 
   # Calculate adjustment
-  adj_sp1 = (ind_sp1-1)*(lm_ev_b_sp1)
-  adj_sp1tosp2 = (ind_sp1-1)*(lm_ev_b_sp2)
-  # adj_sp2 = (ind_sp2-1)*(lm_ev_b_sp2)
-  # adj_sp2tosp1 = (ind_sp2-1)*(lm_ev_b_sp1)
+  adj_sp1 = predict(lm_ev_sp1, newdata = sp1) - base_sp1
+  adj_sp1tosp2 = predict(lm_ev_sp2, newdata = sp1) - base_sp2
+  adj_sp2 = predict(lm_ev_sp2, newdata = sp2) - base_sp2
+  adj_sp2tosp1 = predict(lm_ev_sp1, newdata = sp2) - base_sp1
 
-  # Swap Species trends
+  # Swap Species
   sp1_mm = sp1
   sp1_mm$event = sp1_mm$event - adj_sp1 + adj_sp1tosp2
-  # sp2_mm = sp2
-  # sp2_mm$event = sp2_mm$event - adj_sp2 + adj_sp2tosp1
+
+  # Calculate retrended model
+  if(model == 'linear'){
+
+    lm_rt_sp1 = lm(event ~ year, data = sp1_mm[sp1_mm$year <= max(yrange_base),], ...)
+
+  } else if(model == 'curvilinear'){
+
+    lm_rt_sp1 = lm(event ~ year + I(year^2), data = sp1_mm[sp1_mm$year <= max(yrange_base),], ...)
+
+  }
 
   # Calculate annual means of data and retrended data
   sp1_mean = dplyr::group_by(sp1, year) %>% dplyr::summarize(event = mean(event))
   sp1_mm_mean = dplyr::group_by(sp1_mm, year) %>% dplyr::summarize(event = mean(event))
 
+  # Calculate residuals to retrended model
+  sp1_mean_res = data.frame(year = sp1_mean$year, event = sp1_mean$event - predict(lm_rt_sp1, sp1_mean))
+  sp1_mm_mean_res = data.frame(year = sp1_mm_mean$year, event = sp1_mm_mean$event - predict(lm_rt_sp1, sp1_mm_mean))
+
   # Calculate quantiles of interest
-  for(i in 1:length(quants)){thresh = c(quantile(sp1_mm_mean$event, min(quants)), quantile(sp1_mm_mean$event, max(quants)))}
+  for(i in 1:length(quants)){thresh = c(quantile(sp1_mm_mean_res[sp1_mm_mean_res$year <= max(yrange_base), 'event'], min(quants)),
+                                        quantile(sp1_mm_mean_res[sp1_mm_mean_res$year <= max(yrange_base), 'event'], max(quants)))}
 
   # If alt = greater, check if the minimum threshold is greater than each individual year
-  if(alt == 'greater'){ks_p = ifelse(min(thresh) > sp1_mean$event, 1, 0)}
+  if(alt == 'greater'){ks_p = ifelse(min(thresh) > sp1_mean_res$event, 1, 0)}
 
   # If alt = lesser, check if the maximum threshold is less than each individual year
-  if(alt == 'less'){ks_p = ifelse(max(thresh) < sp1_mean$event, 1, 0)}
+  if(alt == 'less'){ks_p = ifelse(max(thresh) < sp1_mean_res$event, 1, 0)}
 
   # if alt = two.sided, check both
-  if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > sp1_mean$event)|(max(thresh) < sp1_mean$event), 1, 0)}
+  if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > sp1_mean_res$event)|(max(thresh) < sp1_mean_res$event), 1, 0)}
 
   # Calculate emergence
   emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5)}, align = 'left')

@@ -12,6 +12,8 @@ emp_tope(
   alt = "greater",
   quants = c(0.25, 0.75),
   unemergence = F,
+  model = "linear",
+  baseline = "static",
   ...
 )
 }
@@ -22,13 +24,17 @@ emp_tope(
 
 \item{plot}{If TRUE, will generate a plot of test result against year.}
 
-\item{max_y}{Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.}
+\item{max_y}{Length of baseline window used to generate detrended counterfactual. If 0 uses all years, else uses maximum of max_y years.}
 
-\item{alt}{Alternative hypothesis for emergence testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
+\item{alt}{Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
 
 \item{quants}{Quantiles of the detrended data used to determine the emergence threshold}
 
 \item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+
+\item{model}{Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.}
+
+\item{baseline}{Static or moving baseline used to generate detrended counterfactual. If 'static', same baseline is used for all years tested. If 'moving', baseline moves with test year.}
 
 \item{...}{Additional arguments to feed to \code{lm()}}
 }

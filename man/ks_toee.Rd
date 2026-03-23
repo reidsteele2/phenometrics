@@ -14,6 +14,7 @@ ks_toee(
   max_y = 0,
   alt = "less",
   unemergence = F,
+  model = "linear",
   ...
 )
 }
@@ -32,9 +33,11 @@ ks_toee(
 
 \item{max_y}{Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.}
 
-\item{alt}{Alternative hypothesis for emergence testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
+\item{alt}{Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
 
 \item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+
+\item{model}{Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.}
 
 \item{...}{Additional arguments to feed to \code{lm()}}
 }

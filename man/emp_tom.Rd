@@ -9,9 +9,11 @@ emp_tom(
   sp2,
   emt = 5,
   plot = T,
+  max_y = 0,
   alt = "two.sided",
   quants = c(0.25, 0.75),
   unemergence = F,
+  model = "linear",
   ...
 )
 }
@@ -24,11 +26,15 @@ emp_tom(
 
 \item{plot}{If TRUE, will generate a plot of test result against year.}
 
-\item{alt}{Alternative hypothesis for emergence testing. Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.}
+\item{max_y}{Maximum number of years used to generate the detrended counterfactual. Deactivated (uses full time series) if set to 0.}
+
+\item{alt}{Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'two.sided' by default, indicating checking for sp1 event timing to to be either greater than or less than sp2.}
 
 \item{quants}{Quantiles of the counterfactual data used to determine the emergence threshold}
 
 \item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+
+\item{model}{Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.}
 
 \item{...}{Additional arguments to feed to \code{lm()}}
 }

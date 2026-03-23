@@ -4,42 +4,18 @@
 \alias{community}
 \title{Community ToPE and ToEE Metrics}
 \usage{
-community(
-  data,
-  em_alt = "greater",
-  dc_alt = "less",
-  method = "empirical",
-  emt = 5,
-  quants = c(0.025, 0.975),
-  alpha = 0.05,
-  ks_t = 0.6,
-  nboot = 100,
-  max_y = 0,
-  unemergence = F
-)
+community(data, em_alt = "greater", dc_alt = "less", method = "empirical", ...)
 }
 \arguments{
 \item{data}{A data frame containing the time series to test for ToEE and ToPE. Must contain year (column named 'year'), timing of phenological event of interest, in Julian day (column named 'event'), environmental condition of interest (column named 'env'), and unique identifier for each individual time series for which ToPE and ToEE should be calculated (column named 'species').}
 
-\item{em_alt}{Alternative hypothesis for ToPE testing. Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
+\item{em_alt}{Alternative hypothesis for ToPE testing ("two.sided", "less", or "greater"). Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.}
 
-\item{dc_alt}{Alternative hypothesis for ToEE emergence testing. Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.}
+\item{dc_alt}{Alternative hypothesis for ToEE emergence testing ("two.sided", "less", or "greater"). Set to 'less' by default, indicating checking for an increasing trend in the time series of env ~ year.}
 
 \item{method}{Methodology used for emergence calculations. Set to 'empirical' for empirical testing (default), or 'statistical' for statistical testing using the Kolmogorov-Smirnov test.}
 
-\item{emt}{Number of consecutive years of positive test results required to define emergence.}
-
-\item{quants}{Quantiles used for empirical testing. Unused if method = 'statistical'.}
-
-\item{alpha}{Alpha value used to determine significance for statistical testing. Unused if method = 'empirical'.}
-
-\item{ks_t}{Proportion of significant KS Tests required to define a positive test result. Unused if method = 'empirical'.}
-
-\item{nboot}{Number of boostrapped KS tests to run. Unused if method = 'empirical'.}
-
-\item{max_y}{Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.}
-
-\item{unemergence}{If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.}
+\item{...}{Additional arguments to feed to ToPE/ToEE functions (\code{ks_tope}, \code{ks_toee}, \code{emp_tope}, \code{emp_toee})}
 }
 \value{
 A data frame containing classification results for each species and year determined by ToPE and ToEE test results. Designed to feed into class_by_year() and class_by_species() functions.

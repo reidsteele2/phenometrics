@@ -15,6 +15,7 @@
 #' @param max_y Moving year window used to generate detrended counterfactual. If 0, moving window is deactivated, else length of moving year window.
 #' @param alt Alternative hypothesis for emergence testing ("two.sided", "less", or "greater"). Set to 'greater' by default, indicating checking for an decreasing trend in the time series of event ~ year.
 #' @param unemergence If F, all years after first emergence are set to emerged. If T, calculation for each individual year is returned.
+#' @param model Type of model used for detrending. 'linear' or 'curvilinear'. 'linear' uses a simple linear model, 'curvilinear' adds an x^2 term.
 #' @param ... Additional arguments to feed to `lm()`
 #'
 #' @returns A data frame containing year, test result (p, binary. 1 = threshold exceeded), and emergence status (binary, 1 = emerged)
@@ -44,8 +45,13 @@ ks_toee = function(data,    # Input data
                    max_y = 0, # Maximum year window, 0 = deactivated
                    alt = 'less', # KS Test sidedness
                    unemergence = F, # if F, all years after first emergence are set to emergence
-                   ... # Additional argument to feed to lm()
+                   model = 'linear', # model used for detrending. 'linear' or 'curvilinear'.
+                   ... # Additional arguments to feed to lm()
 ){
+
+  # Add error messages for invalid selections
+  if(!alt %in% c("two.sided", "less", "greater")){stop('alt setting not recognized')}
+  if(!model %in% c("linear", "curvilinear")){stop('model setting not recognized')}
 
   # Final year in first max_y set
   iyear = min(data$year) + max_y - 1
@@ -53,67 +59,60 @@ ks_toee = function(data,    # Input data
   # Use all years if may_y is deactivated or there are fewer than max_y years
   if((iyear >= max(data$year)) | (max_y == 0)){
 
-    # Fit linear model (arrival)
-    lm_ev = lm(env ~ year, data = data, ...)
+    # Warn if baseline is moving but time series is too short
+    if((max_y > 0) & (iyear >= max(data$year))){warning('Moving window is equal to or greater than time series length. Double-check max_y parameter.')}
 
-    # Pull out slope
-    lm_ev_summ = summary(lm_ev)
-    lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
+    # Fit linear model (environment)
+    if(model == 'linear'){
 
-    # # Plot LM
-    # plot(env ~ year, data = data, pch = 16)
-    # abline(lm_ev, col = 'blue', lwd = 2)
+      lm_ev = lm(env ~ year, data = data, ...)
 
-    # Gather years
-    years = unique(data$year)
+    } else if(model == 'curvilinear'){
 
-    # Adjust year to order
-    years_0 = years-min(years)
+      lm_ev = lm(env ~ year + I(year^2), data = data, ...)
 
-    # Generate match index
-    ind = match(data$year, years)
+    }
+
+    # prediction values at data points
+    abs_preds = predict(lm_ev, newdata = data)
+
+    # calculate baseline value
+    baseline_val = predict(lm_ev, newdata = data.frame(year = min(data$year)))
 
     # Calculate adjustment
-    adj = (ind-1)*lm_ev_b
+    adj = abs_preds - baseline_val
 
     # Detrend
     data_d = data
     data_d$env = data_d$env-adj
 
-    # Fit linear model (arrival)
-    lm_ev_d = lm(env ~ year, data = data_d, ...)
-
-    # Pull out slope
-    lm_ev_summ_d = summary(lm_ev_d)
-    lm_ev_b_d = lm_ev_summ_d$coefficients['year','Estimate']
-
-    # # Plot LM
-    # plot(env ~ year, data = data_d, pch = 16)
-    # abline(lm_ev_d, col = 'blue', lwd = 2)
-
   } else {
+
+    # Save years
+    years = unique(data$year)
 
     # Run initial years
     data_f = dplyr::filter(data, year <= iyear)
 
-    # Fit linear model (arrival)
-    lm_ev = lm(env ~ year, data = data_f, ...)
+    # Fit linear model (environment)
+    if(model == 'linear'){
 
-    # Pull out slope
-    lm_ev_summ = summary(lm_ev)
-    lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
+      lm_ev = lm(env ~ year, data = data_f, ...)
 
-    # Gather years
-    years = unique(data$year)
+    } else if(model == 'curvilinear'){
 
-    # Adjust year to order
-    years_0 = years-min(years)
+      lm_ev = lm(env ~ year + I(year^2), data = data_f, ...)
 
-    # create slope container data frame
-    slopes = data.frame(year = years, ind = years_0, adj = NA)
+    }
 
-    # Add relevant adjustments
-    slopes$adj = ifelse(slopes$year <= iyear, slopes$ind*lm_ev_b, NA)
+    # calculate baseline value
+    baseline_val = predict(lm_ev, newdata = data.frame(year = min(data_f$year)))
+
+    # create adjustment container data frame
+    slopes = data.frame(year = unique(data$year), adj = NA)
+
+    # Calculate adjustment for years before moving window
+    slopes[slopes$year<=iyear,'adj'] = predict(lm_ev, slopes[slopes$year<=iyear,])-baseline_val
 
     # Loop through remaining years
     for(i in which(is.na(slopes$adj))){
@@ -121,15 +120,25 @@ ks_toee = function(data,    # Input data
       # filter data to relevant years
       data_f = dplyr::filter(data, year %in% seq(slopes$year[i] - (max_y - 1), slopes$year[i], 1))
 
-      # Fit linear model (arrival)
-      lm_ev = lm(env ~ year, data = data_f, ...)
+      # Fit linear model (environment)
+      if(model == 'linear'){
 
-      # Pull out slope
-      lm_ev_summ = summary(lm_ev)
-      lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
+        lm_ev = lm(env ~ year, data = data_f, ...)
+
+      } else if(model == 'curvilinear'){
+
+        lm_ev = lm(env ~ year + I(year^2), data = data_f, ...)
+
+      }
+
+      # prediction values at data points
+      abs_preds = predict(lm_ev,newdata = data.frame(year = max(data_f$year)))
+
+      # calculate baseline value
+      baseline_val = predict(lm_ev, newdata = data.frame(year = min(data_f$year)))
 
       # Enter adjustment
-      slopes$adj[i] = lm_ev_b * (max_y-1)
+      slopes$adj[i] = abs_preds-baseline_val
 
     } # End loop through slopes
 
@@ -143,14 +152,7 @@ ks_toee = function(data,    # Input data
     data_d = data
     data_d$env = data_d$env-adj
 
-    # Fit linear model (arrival)
-    lm_ev_d = lm(env ~ year, data = data_d, ...)
-
-    # Pull out slope
-    lm_ev_summ_d = summary(lm_ev_d)
-    lm_ev_b_d = lm_ev_summ_d$coefficients['year','Estimate']
-
-  }
+  } # End else
 
   # Run ks tests
 
@@ -211,7 +213,7 @@ ks_toee = function(data,    # Input data
          ylab = 'Proportion of KS Tests Significant', xlab = 'Year')
     abline(h = ks_t, lty = 'dashed', col = 'blue') # Add significance threshold line
     abline(v = ks_p_df[min(which(emerged == 1)),'year'], lwd = 2, col = 'red') # Add Emerged Year
-    text(y = 0.5, x = ks_p_df[min(which(emerged == 1)),'year'] + 4, label = paste('TOD:', ks_p_df[min(which(emerged == 1)),'year']), col = 'red')
+    text(y = 0.5, x = ks_p_df[min(which(emerged == 1)),'year'] + 4, label = paste('TOE:', ks_p_df[min(which(emerged == 1)),'year']), col = 'red')
 
   } # End plot if
 
