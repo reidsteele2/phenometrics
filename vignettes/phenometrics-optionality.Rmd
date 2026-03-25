@@ -271,7 +271,9 @@ less = emp_tope(dataset, alt = 'less')
 twoside = emp_tope(dataset, alt = 'two.sided')
 ```
 
-End-users should be aware that `phenometrics` functions do not distinguish between increasing and decreasing time series when `alt = "two.sided"`, which may cause species with opposite trends to appear similarly in community-level functions. We generally recommend one-sided tests on ToPE and ToEE for this reason. Running two one-sided tests may be preferable to running one two-sided test.
+To prevent two-sided tests from emerging by exceeding alternating quantiles, two-sided empirical test results return 1 for a positive test where the original time series rises above the upper test quantile and -1 for positive tests where it falls below the lower test quantile. Emergence is assigned only when one of these two results occurs for `emt` consecutive years. This behaviour is unique to empirical testing, as the year-to-year nature of the statistical test makes it impossible for positive test results to switch directions. End users should also note that changing the statistical test to `two.sided` feeds into the `alternative` argument of `ks.test`, which can cause the exact p-values to slightly shift compared to a one-sided test. This may change emergence timing in rare cases. This behaviour is unique to statistical testing.
+
+End-users should be aware that aside from 1 and -1 in the empirical ToE functions, **`phenometrics`** **functions do not distinguish between increasing and decreasing time series when `alt = "two.sided"`, which may cause species with opposite trends to appear similarly in community-level functions.** We generally recommend one-sided tests on ToPE and ToEE for this reason. Running two one-sided tests may be preferable to running one two-sided test.
 
 ## Threshold Values
 
@@ -410,7 +412,7 @@ plot(event_lm, which = 1)
 
 ```
 
-In this case, because the input data is not linear, the counterfactual is not flat throughout the time series. We recommend users check their data for linearity where it may be of concern using the residuals vs fitted plot, or similar. A misspecified counterfactual will always make empirical emergence take longer to occur than it otherwise would. Statistical methodology may be affected variably depending on the pattern. Here, it takes longer to occur because the counterfactual is closer to the original time series than it should be through the early part of the time series. However, this may not always be the case:
+In this case, because the input data is not linear, the counterfactual is not flat throughout the time series. We recommend users check their data for linearity where it may be of concern using the residuals vs fitted plot, or similar. Results may be affected variably depending on the counterfactual pattern. Here, emergence takes longer to occur because the counterfactual is closer to the original time series than it should be through the early part of the time series. However, this may not always be the case:
 
 ```{r}
 # Set seed
@@ -587,7 +589,7 @@ ggplot(dataset, aes(x = year, y = event, color = group)) +
 default = emp_tope(dataset)
 ```
 
-Despite no trend in any of these groups, emergence occurs because there is an overall trend when the data is pooled due to differences in each group's baseline, and when they are sampled (Note that this also fools a linear model this dataset if group is not included). This can be corrected by adjusting the input data entered into the ToPE function. For example, we can run ToPE after peformed group mean centering:
+Despite no trend in any of these groups, emergence occurs because there is an overall trend when the data is pooled due to differences in each group's baseline, and when they are sampled (Note that this also fools a linear model this dataset if group is not included). This can be corrected by adjusting the input data entered into the ToPE function. For example, we can run ToPE after performing group mean centering:
 
 ```{r}
 library(bruceR, quietly = T)

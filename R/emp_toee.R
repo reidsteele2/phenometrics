@@ -186,7 +186,12 @@ emp_toee = function(data,    # Input data
     if(alt == 'less'){ks_p = ifelse(max(thresh) < data_m$env, 1, 0)}
 
     # if alt = two.sided, check both
-    if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > data_m$env)|(max(thresh) < data_m$env), 1, 0)}
+    if(alt == 'two.sided'){
+
+      ks_p = ifelse(min(thresh) > data_m[data_m$year == unique(data$year),'env'], -1, 0)
+      ks_p = ifelse(max(thresh) < data_m[data_m$year == unique(data$year),'env'], 1, ks_p)
+
+    } # End two.sided if
 
     # If baseline is moving, calculate thresholds for each window
   } else if (baseline == 'moving'){
@@ -217,15 +222,19 @@ emp_toee = function(data,    # Input data
       if(alt == 'less'){ks_p[test_ind] = ifelse(max(thresh) < data_m[data_m$year == unique(data$year)[test_ind],'env'], 1, 0)}
 
       # if alt = two.sided, check both
-      if(alt == 'two.sided'){ks_p[test_ind] = ifelse((min(thresh) > data_m[data_m$year == unique(data$year)[test_ind],'env'])|
-                                                       (max(thresh) < data_m[data_m$year == unique(data$year)[test_ind],'env']), 1, 0)}
+      if(alt == 'two.sided'){
+
+        ks_p[test_ind] = ifelse(min(thresh) > data_m[data_m$year == unique(data$year)[test_ind],'env'], -1, 0)
+        ks_p[test_ind] = ifelse(max(thresh) < data_m[data_m$year == unique(data$year)[test_ind],'env'], 1, ks_p[test_ind])
+
+      } # End two.sided if
 
     } # End iyear for loop
 
   } # End moving baseline if
 
   # Calculate emergence
-  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5) | all(x<=-0.5)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){

@@ -131,10 +131,15 @@ emp_tom = function(sp1,     # Input data for species 1 (test species)
   if(alt == 'less'){ks_p = ifelse(max(thresh) < sp1_mean_res$event, 1, 0)}
 
   # if alt = two.sided, check both
-  if(alt == 'two.sided'){ks_p = ifelse((min(thresh) > sp1_mean_res$event)|(max(thresh) < sp1_mean_res$event), 1, 0)}
+  if(alt == 'two.sided'){
+
+    ks_p = ifelse((min(thresh) > sp1_mean_res$event), -1, 0)
+    ks_p = ifelse((max(thresh) < sp1_mean_res$event), 1, ks_p)
+
+  } # End two.sided if
 
   # Calculate emergence
-  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5)}, align = 'left')
+  emerged = data.table::frollapply(ks_p, N = emt, FUN = function(x){all(x>=0.5) | all(x<=-0.5)}, align = 'left')
 
   # Set all to 1 after emergence
   if(unemergence == F){
