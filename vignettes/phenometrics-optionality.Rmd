@@ -50,9 +50,9 @@ head(emp_tope(dataset))
 
 ```
 
-By default, this function outputs a data frame that contains the year, test value p (1 = positive test value, indicating that year has exceeded historical variability), emergence status (1 = emerged, 0 = not emerged). Emergence occurs once a certain number of consecutive years return positive test values (set to 5 by default). Unless told not to, it also generates a plot of test results against year, and if applicable, indicates the point at which emergence occurs.
+By default, this function outputs a data frame that contains the year, test value p (0 = year has not exceeded historical variability, 1 = positive test value, indicating that an individual year has exceeded historical variability), emergence status (0 = not emerged, 1 = emerged). Emergence status is set to 1 once a certain number of consecutive years return positive test values (set to 5 by default). Unless the `plot` parameter is set to `FALSE`, it also generates a plot of test results against year, which, if applicable, indicates the year at which emergence occurs.
 
-Alternatively, `ks_tope()` calculates ToPE using statistical methodology via bootstrapped Kolmogorov-Smirnov tests. This requires there to be replicates within each year to serve as the sample size for the test.
+An alternative function, `ks_tope()` calculates ToPE but using a statistical methodology via bootstrapped Kolmogorov-Smirnov tests. This requires there to be replicates within each year to provide a sufficient sample size for the test.
 
 ```{r}
 # Set seed
@@ -159,7 +159,9 @@ head(ks_tom(sp1, sp2))
 
 ```
 
-You'll notice ToM results take a similar form to the ToPE and ToEE results. The similarities don't end there - `phenometrics` also contains community-level wrapper functions for multi-species mismatch datasets. `comm_mismatch()`, `comm_mm_by_spp()`, and `comm_mm_by_year()` are the mismatch equivalents to the above ToPE/ToEE-based functions. As with `class_by_species` and `class_by_year`, they use empirical methodology by default but this can be changed by setting `method = 'statistical'`.
+You'll notice ToM results take a similar form to the ToPE and ToEE results. 
+
+The similarities don't end there - `phenometrics` also contains community-level wrapper functions for multi-species mismatch datasets. `comm_mismatch()`, `comm_mm_by_spp()`, and `comm_mm_by_year()` are the mismatch equivalents to the above ToPE/ToEE-based functions. As with `class_by_species` and `class_by_year`, they use empirical methodology by default but this can be changed by setting `method = 'statistical'`.
 
 ```{r}
 # Set seed
@@ -232,11 +234,11 @@ If using this functionality, we recommend recalculating many simulated time seri
 
 # Package Options and Advice for End-Users
 
-Ultimately, `phenometrics` is designed to be a broadly applicable collection of tools which calculate the point at which a time series' signal exceeds its noise (or in the case of ToM, when a time series' signal exceeds both its own noise and the signal of a comparison time series). However, it is important that end-users understand exactly what `phenometrics` is (and is not), and how they can modify the analyses it performs both within and without the package functions to tailor the tools within to their own study systems and research questions.
+Ultimately, `phenometrics` is designed to be a broadly applicable collection of tools to detect emergence of phenological events from historical variability. In fact, the use case is much broader: `phenometrics` can be used to identify the point at which any time series' signal exceeds its noise (or in the case of ToM, the point at which a time series' signal exceeds both its own noise and the signal of a comparison time series). However, it is important that end-users understand exactly what `phenometrics` is (and is not), what aspects are beyond the scope of the package and need to modified or examined in data or elsewhere, and  how they can appropriately modify the analyses it performs to tailor the tools to their own study systems and research questions.
 
 ## Directionality
 
-The directionality of the tests in `phenometrics` is controlled by the `alt` argument(s) within each function. By default, the package functions are set to look for advancing (i.e. earlier) phenological trends (presuming springtime), increasing environmental variables (presuming increasing temperature), and mismatch in either direction. If these directions are not the direction of interest for the end-user, the `alt` argument should be changed to match. For example, take the case of a species delaying its autumn phenology:
+The directionality of the tests in `phenometrics` is controlled by the `alt` argument(s) within each function. By default, the package functions are set to look for advancing (i.e. earlier) phenological trends (presuming springtime), increasing environmental variables (e.g. increasing temperature at which a phenological event occurs), and mismatch with other species in either direction. If these directions are not the direction of interest for the end-user, the `alt` argument should be changed to match. For example, take the case of a species delaying its autumn phenology (i.e. an event occuring later in the autumn, perhaps due to warmer periods continuing to occur later on the year):
 
 ```{r}
 # Set seed
@@ -252,7 +254,7 @@ plot(data = dataset, event ~ year, pch = 16)
 test = emp_tope(dataset)
 ```
 
-Emergence is not detected because `emp_tope` defaults to looking for declining trends. This can be fixed by setting `alt = "less"` or `alt = "two.sided"`.
+Emergence is not detected because `emp_tope` defaults to looking for declining trends, resulting in the above warning messages. This can be fixed by setting `alt = "less"` or `alt = "two.sided"`.
 
 ```{r}
 # Calculate empirical time of phenological emergence (ToPE)
@@ -260,17 +262,19 @@ less = emp_tope(dataset, alt = 'less')
 twoside = emp_tope(dataset, alt = 'two.sided')
 ```
 
-To prevent two-sided tests from emerging by exceeding alternating quantiles, two-sided empirical test results return 1 for a positive test where the original time series rises above the upper test quantile and -1 for positive tests where it falls below the lower test quantile. Emergence is assigned only when one of these two results occurs for `emt` consecutive years. This behaviour is unique to empirical testing, as the year-to-year nature of the statistical test makes it impossible for positive test results to switch directions. End users should also note that changing the statistical test to `two.sided` feeds into the `alternative` argument of `ks.test`, which can cause the exact p-values to slightly shift compared to a one-sided test. This may change emergence timing in rare cases. This behaviour is unique to statistical testing.
+One further important note on the behaviour of the function: to prevent two-sided tests from identifying emergence due to exceeding alternating quantiles (i.e. alternating years above and below the range of historical variability), two-sided empirical test results return a value of 1 for tests where the original time series exceeds above the upper test quantile and a value of -1 for tests where it falls below the lower test quantile. Emergence is assigned when only one of these two results occurs for `emt` consecutive years.
 
-End-users should be aware that aside from 1 and -1 in the empirical ToE functions, **`phenometrics`** **functions do not distinguish between increasing and decreasing time series when `alt = "two.sided"`, which may cause species with opposite trends to be combined in community-level functions.** We generally recommend one-sided tests on ToPE and ToEE for this reason. Running two one-sided tests may be preferable to running one two-sided test.
+This behaviour is unique to empirical testing, as the year-to-year nature of the statistical test makes it impossible for positive test results to switch directions. End users should also note that changing the statistical test to `two.sided` uses the `alternative` argument of `ks.test`, which can cause the exact p-values to shift slightly compared to a one-sided test. This may change emergence timing in rare cases. This behaviour is unique to statistical testing.
+
+End-users should be aware that aside from values of 1 and -1 in the empirical ToE functions, **`phenometrics`** **functions do not distinguish between increasing and decreasing time series when `alt = "two.sided"`, which may cause species with opposite trends to be combined in community-level functions.** We generally recommend one-sided tests when using community-level functions and indicators such as ToPE and ToEE for this reason. Running two one-sided tests may be preferable to running one two-sided test.
 
 ## Threshold Values
 
-Both statistical and empirical ToE tests rely on various threshold values to quantify emergence. Generally, we do not recommend changing the values of these thresholds from their defaults unless there is clear and convincing reason to do so (i.e. ToE clearly does not match visual inspection of the time series).
+Both statistical and empirical ToE tests rely on various threshold values to quantify emergence. Generally, we do not recommend changing the values of these thresholds from their defaults unless there is a clear and convincing reason to do so (e.g. the ToE clearly does not match visual inspection of the time series).
 
 ### Empirical Thresholds
 
-Empirical ToE test sensitivity can be tuned using the `quants` parameter. By default, it is set to the 25% and 75% quantiles, meaning a positive test result occurs when the original time series drops below the 25% quantile or rises above the 75% quantile of the detrended counterfactual (conditional on the value of `alt`). Moving these values closer to 0 and 1 respectively requires a greater difference between the original time series and the counterfactual for a positive test result to occur, making the test more conservative (and vice versa).
+Empirical ToE test sensitivity can be adjusted using the `quants` parameter. By default, it is set to the 0.25 and 0.75 quantiles, meaning that a positive test result occurs when the original time series drops below the 25th percentile or rises above the 75th percentile of the detrended counterfactual (depending on the value of `alt`). Moving these values closer to 0 and 1 respectively requires a greater difference between the original time series and the counterfactual for a positive test result to occur, making the test more conservative (and vice versa). The example below shows a comparison between the default values and when the `quants` parameter is set to 0.025 and 0.075 values.
 
 ```{r}
 # Set seed
@@ -288,7 +292,7 @@ edited = emp_tope(dataset, quants = c(0.025, 0.975))
 
 ### Statistical Thresholds
 
-Statistical ToE test sensitivity is conditional on multiple parameters. `ks_t` is the proportion of bootstrapped KS tests which must be significant to return a positive test result, `alpha` is the significance test value of the KS test, and `nboot` is the number of bootstrap KS tests performed. Increasing `nboot` reduces differences between run-to-run results in exchange for longer run time. Increasing `ks_t` closer to 1 and/or reducing `alpha` closer to 0 makes the test more conservative (and vice versa), though it should be noted that `alpha = 0.05` is standard for statistical significance.
+Statistical ToE test sensitivity is conditional on multiple parameters. `ks_t` is the proportion of bootstrapped KS tests which must be significant to return a positive test result (default 0.6), `alpha` is the significance test value of the KS test (default 0.05), and `nboot` is the number of bootstrap KS tests performed (default 100). Increasing `nboot` reduces differences between run-to-run results in exchange for longer run time. Increasing `ks_t` closer to 1 and/or reducing `alpha` closer to 0 makes the test more conservative (and vice versa), though it should be noted that `alpha = 0.05` is typically a standard threshold for statistical significance.
 
 ```{r}
 # Set seed
@@ -306,9 +310,9 @@ edited = ks_tope(dataset, ks_t = 0.9)
 
 ### Emergence Threshold
 
-The emergence threshold, controlled by `emt`, is the number of consecutive positive test results required to define emergence. It is set to 5 years by default, which is typically used in ToE literature. Increasing this value may make emergence take longer to occur, and vice versa. Changing `emt` only changes emergence timing when one or more negative test results occur after a positive test result. Lower values of `emt` are more susceptible to defining emergence early if the time series regresses back towards its baseline value, and/or uncertainty increases. High values of `emt` are more susceptible to delayed detection of emergence due to stochastic events in the opposite direction of the trend (see the code below for an example).
+The emergence threshold, controlled by `emt`, is the number of consecutive positive test results required to define emergence. It is set to 5 years by default, which is a typical value used in ToE literature. Increasing this value may make emergence take longer to occur, and vice versa. Changing `emt` only changes emergence timing when one or more negative test results occur after a positive test result. Lower values of `emt` are more susceptible to defining emergence early if the time series regresses back towards its baseline value, and/or uncertainty increases. High values of `emt` are more susceptible to delayed detection of emergence due to stochastic events in the opposite direction of the trend (see the code below for an example; the unusually high value of event timing in year 14 shifts the detection of ToE when the `emt` value is higher).
 
-By default, all years after first emergence are considered emerged. This is to prevent emergence being negated by stochastic events after emergence has already occurred. This behaviour can be deactivated by setting `unemergence = T`.
+By default, all years after first emergence are considered emerged. This is to prevent emergence being negated by stochastic events that happen after emergence has already occurred. This behaviour can be deactivated by setting `unemergence = T`.
 
 ```{r}
 # Set seed
@@ -327,9 +331,9 @@ edited = emp_tope(dataset, emt = 10)
 
 ## Baseline Construction
 
-One of the key features of *phenometrics* is that it creates a detrended counterfactual from the input time series. This serves as a baseline to test the original time series against for the purposes of quantifying emergence. This baseline construction methodology means that data doesn't need to be sacrificed to create a baseline to test against, and a stationary baseline can be generated even from time series which do not have any stationary period, both of which make this methodology preferable for short time series which have started well after the effects of climate change have begun.
+One of the key features of *phenometrics* is that it creates a detrended counterfactual from the input time series. This serves as a baseline to test against the original time series  for the purposes of quantifying emergence. It also means that data doesn't need to be sacrificed to create a baseline to test against, and a stationary baseline can be generated even from time series which do not have any stationary period, both of which make this methodology suitable for short time series.
 
-The construction of this baseline is absolutely critical to the process of calculating ToE. Changes to the baseline can have significant effects on whether or when emergence is detected. We provide a few different options around baseline construction to allow users some latitude to customize the methodology to their own individual datasets, and to ensure that the constructed baseline is not misspecified. These include changing the model used to generate the baseline, and modifying which and how many years are used to calculate the baseline.
+The construction of this baseline is  critical to the process of calculating ToE. Changes to the baseline can have a substantial effect on whether or when emergence is detected. We provide a few different options around baseline construction to allow users latitude to customize the methodology to their own individual datasets, and to ensure that the constructed baseline is not misspecified. These include changing the model used to generate the baseline, and modifying which and how many years are used to calculate the baseline.
 
 ### Curvilinear Detrending
 
@@ -359,10 +363,10 @@ counterfactual$event = dataset$event-correction
 plot(data = dataset, event ~ year, pch = 16, ylim = c(60,115), col = 'red')
 abline(event_lm, lty = 'dashed', lwd = 1, col = 'red')
 points(data = counterfactual, event ~ year, pch = 16, col = 'blue')
-legend('bottomleft', col = c('red', 'blue'), legend = c('original', 'counterfactual'), pch = 16)
+legend('bottomleft', col = c('red', 'blue'), legend = c('original time series', 'detrended counterfactual'), pch = 16)
 ```
 
-There are a few critical points about this base methodology that users should understand. The first is that by default, this method uses the entire length of the time series to create the counterfactual, meaning the counterfactual changes as data is added or removed. Secondly, because this detrending is performed with a linear model, **`phenometrics`** **assumes by default that the trend in the time series is linear**. If this assumption is incorrect the baseline will be poorly constructed, and emergence may not be defined properly. For example:
+There are a few critical points about this base methodology that users should be aware of. The first is that by default this method uses the entire length of the time series to create the counterfactual, meaning the counterfactual would change if data are added or removed. Secondly, because this detrending is performed with a linear model, **`phenometrics`** **assumes by default that the trend in the time series is linear**. If this assumption is incorrect the baseline will be poorly constructed, and emergence may not be defined properly. For example:
 
 ```{r}
 # Set seed
@@ -394,7 +398,7 @@ counterfactual = dataset
 counterfactual$event = dataset$event-correction
 
 # Plot
-plot(data = dataset, event ~ year, pch = 16, ylim = c(50,120), col = 'red')
+plot(data = dataset, event ~ year, pch = 16, cex = 0.8, ylim = c(50,120), col = 'red')
 abline(event_lm, lty = 'dashed', lwd = 1, col = 'red')
 points(data = counterfactual, event ~ year, pch = 16, col = 'blue')
 legend('bottomleft', col = c('red', 'blue'), 
@@ -405,7 +409,7 @@ plot(event_lm, which = 1)
 
 ```
 
-In this case, because the input data is not linear, the counterfactual is not flat throughout the time series. We recommend users check their data for linearity where it may be of concern using the residuals vs fitted plot, or similar. Results may be affected variably depending on the counterfactual pattern. Here, emergence takes longer to occur because the counterfactual is closer to the original time series than it should be through the early part of the time series. However, this may not always be the case:
+In this case, because the input data is not linear, the counterfactual is not flat throughout the time series. We recommend users check their data for linearity where it may be a potential concern by using a residuals vs fitted plot, or similar. Results may be affected in different ways if there is a non-linearity in the counterfactual, depending on the nature of that non-linearity. Here, emergence takes longer to occur because the counterfactual is closer than it should be to the original time series during the early years. However, this may not always be the case:
 
 ```{r}
 # Set seed
@@ -418,8 +422,7 @@ year = seq(1,50,1)
 # Create a test dataset with 10 replicates
 for(i in 1:10){
   event = c(round(rnorm(20, 100, 5)), rnorm(30,100,5)- seq(1,30,1))
-  dataset_add = data.frame(year, event)
-  dataset = rbind(dataset_add, dataset)
+  dataset = rbind(data.frame(year, event), dataset)
 }
 
 # Reorder by year
@@ -450,9 +453,9 @@ test = ks_tope(dataset)
 test = emp_tope(dataset)
 ```
 
-In this case, statistical emergence is detected within the first 20 years, despite the original time series being flat over that period . This is because the misspecification of the model caused the counterfactual to increase over the early part of the time series, causing a difference to be detected between the two despite no change in the original data. Meanwhile, empirical emergence is detected immediately because the pattern in the counterfactual has artifically increased the test quantiles to the point that the beginning of the time series is below the lower quantile.
+In this case, statistical emergence is detected within the first 20 years, despite the original time series being flat over that period. This is because the misspecification of the model as linear caused the counterfactual to increase over the early years, causing a difference to be detected between the two despite no trend in the original data. Meanwhile, empirical emergence is detected immediately because the pattern in the counterfactual has artifically increased the test quantiles to the point that the beginning of the time series is below the lower quantile.
 
-As shown above, *phenometrics* performs detrending by fitting a model to the original time series, then subtracting the trend of that model. Hypothetically, this methodology could be performed using any model*.* In addition to the simple linear model default, we allow for the addition of an x\^2 term to the detrending model, making it curvilinear by setting `model = 'curvilinear'`. Curvilinear patterns are common in climate change-related data, and are much better at handling plateaus and other slope changes in the data such as the examples shown previously:
+One way to correct for this kind of issue is to fit a non-linear model for the detrended time series. As shown above, *phenometrics* performs detrending by fitting a model to the original time series, then subtracting the trend in that model. Hypothetically, this methodology could be performed using any model*.* In addition to the simple linear model default, we allow for the addition of an x\^2 term to the detrending model, making it curvilinear, by setting `model = 'curvilinear'`. Curvilinear patterns are common in climate change-related data, and such a model is better at handling plateaus and other slope changes in the data, as in the examples shown previously:
 
 ```{r}
 # Set seed
@@ -501,7 +504,7 @@ test = emp_tope(dataset, model = 'curvilinear')
 
 ### Limited Baseline
 
-One important difference between the statistical and empirical ToE methodologies is that the statistical methodology tests the original time series against the detrended counterfactual on an annual basis, while the empirical methodology tests each year of the original time series against test quantiles generated from the entire detrended counterfactual. As a result, the empirical method is more sensitive to time series length and variance patterns than the statistical method. This can cause changes in the exact year of emergence of a time series when data is added or removed from the end of the time series, even after emergence has already occurred. In some cases this behaviour may be desirable - for example, if adding further years to the time series brings the counterfactual closer to a more representative estimate of the amount of year-to-year variability in a species' phenology. In others, it may be undesirable, such as if changing variability in a species phenology is driven by climate change, or by changes in sampling protocol.
+One important difference between the statistical and empirical ToE methodologies is that the statistical methodology tests the original time series against a detrended counterfactual on an annual basis, while the empirical methodology tests each year of the original time series against test quantiles generated from the entire detrended counterfactual. As a result, the empirical method is more sensitive to time series length and variance patterns than the statistical method. This can cause changes in the exact year of emergence of a time series when additional years are added or removed, even after emergence has already occurred. In some cases this behaviour may be desirable - for example, if working with a shorter time-series when adding further years to the time series brings the counterfactual closer to a more representative estimate of the amount of year-to-year variability in a species' phenology. In others, it may be undesirable, such as when creating indicators which need to be consistent into the future as new data are collected, when changing variability in a species phenology is driven by climate change, or by changes in sampling protocol.
 
 As a method of controlling for these changes, we have included functionality in the empirical ToE tests to limit the baseline period of the detrended counterfactual used to calculate the test quantiles. This is performed through a combination of the `max_y` and `baseline` arguments. `max_y` represents the maximum number of years used to calculated the baseline period (by default it is set to 0, which deactivates this functionality and uses the whole time series). Setting `baseline = 'static'` (the default) ensures the baseline used to test each year does not change (see next section for more details). This can also be used to handle nonlinear patterns in the data, so long as the data is linear across the baseline period used to calculate the test quantiles. For example, reusing the dataset from above:
 
@@ -517,9 +520,9 @@ This functionality is not built into the statistical method because a) the stati
 
 ### Moving Window
 
-In some unique cases, users may have a very long time series which contains multiple patterns. For an extreme example, see the [Kyoto peak cherry tree blossom time series](https://ourworldindata.org/grapher/date-of-the-peak-cherry-tree-blossom-in-kyoto). In such cases, users may be interested in these changing patterns - for example, if a species phenology emerges, and then settles into a new stable period. To handle cases such as these, we have built in functionality to apply our methodology across a moving window. As in the limited baseline case, the length of the moving window is determined by the `max_y` parameter, which represents the maximum number of years used in the moving window (by default it is set to 0, which deactivates this functionality and uses the whole time series). To enable the moving window approach for empirical tests, users must also set `baseline = 'moving'`. As there is no static limited baseline approach in the statistical methodology, setting `max_y` to any value greater than 0 will activate the moving window approach.
+In some rare cases (certainly rare for ecological data), users may have a very long time series which contains multiple emergence patterns. For an extreme example, see the [Kyoto peak cherry tree blossom time series](https://ourworldindata.org/grapher/date-of-the-peak-cherry-tree-blossom-in-kyoto). In such cases, users may be interested in these changing patterns - for example, if a species phenology emerges, and then settles into a new stable period. To handle cases such as these, we have built in functionality to apply our methodology across a moving window. As in the limited baseline case, the length of the moving window is determined by the `max_y` parameter, which represents the maximum number of years used in the moving window (by default it is set to 0, which deactivates this functionality and uses the whole time series). To enable the moving window approach for empirical tests, users must also set `baseline = 'moving'`. As there is no static limited baseline approach in the statistical methodology, setting `max_y` to any value greater than 0 will activate the moving window approach.
 
-For example, if `max_y = 20` (and `baseline = 'moving'` if relevant) the methodology will calculate emergence for the first 20 years of the time series as if only given the first 20 years. Year 21 will be calculated as if given years 2 to 21, year 22 as if given years 3 to 22, and so on to the end of the time series.
+For example, if `max_y = 20` (and `baseline = 'moving'` if relevant) the methodology will calculate emergence for the first 20 years of the time series using only the first 20 years as baseline to calculate the counterfactual. Year 21 will be calculated by using years 2 to 21 to calculate the counterfactual, year 22 by using years 3 to 22, and so on.
 
 ```{r}
 # Set seed
@@ -554,11 +557,11 @@ In this scenario, the default statistical test is misspecified because the assum
 
 ## Data Corrections and Considerations
 
-When considering input data, corrections, and model assumptions, we recommend end-users conceptualize individual `phenometrics` ToE functions the same as they would linear models. Any changes made to raw data fed into ToE functions will be carried through ToE calculations and into the end result. End-users may leverage this to correct for issues in their data (e.g. bias, differences in uncertainty, etc.) as they would for a linear model. We provide some examples below that we believe may be generally applicable.
+When considering input data, corrections, and model assumptions, we recommend end-users think conceptually about individual `phenometrics` ToE functions in the same manner as they would linear models. Any changes made to raw data fed into ToE functions will be carried through ToE calculations and into the end result. End-users may leverage this to correct for issues in their data (e.g. bias, differences in uncertainty, etc.) as they would for a linear model. We provide some examples below that we believe may be generally applicable.
 
 ### Group Bias
 
-End-users who have grouped data may be subject to bias across groups, leading to emergence being incorrectly identified, or identified at the wrong time. For example, there might be systemic bias in sampling effort over time, or a species may shift its phenology at different rates throughout its range. In the example below, we have three groups with differing baselines, none of which have a phenological trend over time, which begin sampling at different times.
+End-users who have grouped data that may be subject to bias across groups could lead to emergence being incorrectly identified, or identified at the wrong time. For example, there might be systemic bias in sampling effort over time, or a species may shift its phenology at different rates throughout its range. In the example below, we have three groups with differing starting years for their baselines (and also baseline lengths). None of these groups have a phenological trend over time, which begin sampling at different times.
 
 ```{r}
 # Set seed
@@ -580,7 +583,7 @@ ggplot(dataset, aes(x = year, y = event, color = group)) +
 default = emp_tope(dataset)
 ```
 
-Despite no trend in any of these groups, emergence occurs because there is an overall trend when the data is pooled due to differences in each group's baseline and sampling period (Note that this also fools a linear model this dataset if group is not included). This can be corrected by adjusting the input data entered into the ToPE function. For example, we can run ToPE after performing group mean centering:
+Despite no trend in any of these groups, emergence occurs because there is an overall trend when the data is pooled due to differences in each group's baseline and sampling period (Note that this also fools a linear model of this dataset if group is not included). This can be corrected by adjusting data prior to entering it into the ToPE function. For example, we could run ToPE after performing group mean centering:
 
 ```{r}
 library(bruceR, quietly = T)
@@ -599,7 +602,7 @@ default = emp_tope(dataset) # Emergence does not occur
 
 ### Weighting
 
-The ToE functions in `phenometrics` can carry any argument to `lm()`, with the exception of `formula` and `data`, which are fixed. One potential use of this functionality is to feed weights to the linear models inside the ToE functions, which are used to calculate the detrended counterfactual. This **does not** affect how each point is used in calculating test results, but it **does** affect how each point is used in calculating the baseline.
+The ToE functions in `phenometrics` can carry forward any argument to `lm()`, with the exception of `formula` and `data`, which are fixed. One potential use of this functionality is to feed weights to the linear models inside the ToE functions, which are used to calculate the detrended counterfactual. This **does not** affect how each point is used in calculating test results, but it **does** affect how each point is used in calculating the baseline.
 
 ```{r}
 # Set seed
@@ -622,7 +625,7 @@ Users may use this functionality in the same way they would (or would not) for a
 
 ### Resampling
 
-By default, `phenometrics` does not calculate uncertainty in ToE values, as uncertainty in the dataset provided is baked into the ToE value itself. One method by which end-users may calculate uncertainty in ToE values if they are interested in doing so is by resampling. For example, end-users may bootstrap each year in a dataset to generate a distribution of ToE values.
+By default, `phenometrics` does not calculate uncertainty in ToE values, as uncertainty in the dataset provided is baked into the ToE value itself. One method by which end-users may calculate uncertainty in ToE values, if they are interested in doing so, is by resampling. For example, end-users may bootstrap each year in a dataset to generate a distribution of ToE values.
 
 ```{r}
 # Set seed
