@@ -157,7 +157,7 @@ ks_tom = function(sp1,     # Input data for species 1
          ylab = 'Proportion of KS Tests Significant', xlab = 'Year')
     abline(h = ks_t, lty = 'dashed', col = 'blue') # Add significance threshold line
     abline(v = ks_p_df[min(which(emerged == 1)),'year'], lwd = 2, col = 'red') # Add Emerged Year
-    text(y = 0.5, x = ks_p_df[min(which(emerged == 1)),'year'] + 4, label = paste('TOM:', ks_p_df[min(which(emerged == 1)),'year']), col = 'red')
+    text(y = c(-0.5, 0.5), x = ks_p_df[min(which(emerged == 1)),'year'] + 4, label = paste('TOM:', ks_p_df[min(which(emerged == 1)),'year']), col = 'red')
 
   } # End plot if
 

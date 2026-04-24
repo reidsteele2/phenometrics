@@ -1,5 +1,8 @@
 ---
 output: github_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -16,13 +19,24 @@ knitr::opts_chunk$set(
 # phenometrics
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
-This package is designed to calculate, summarize, and plot Time of Emergence (ToE)-based metrics describing and contextualizing how species' phenologies respond to climate change. It contains tools to detect the point at which a species' phenology emerges from its original state to establish a new regime, both in terms of the time at which its phenology occurs, as well as the environmental conditions under which it occurs. It also contains tools to detect the timing of ecological mismatch between species phenologies, and functions to summarize results across species into community-wide indicators to analyze the effects of climate change on community phenology as a whole.
+This package is designed to calculate, summarize, and plot Time of
+Emergence (ToE)-based metrics describing and contextualizing how
+species' phenologies respond to climate change. It contains tools to
+detect the point at which a species' phenology emerges from its original
+state to establish a new regime, both in terms of the time at which its
+phenology occurs, as well as the environmental conditions under which it
+occurs. It also contains tools to detect the timing of ecological
+mismatch between species phenologies, and functions to summarize results
+across species into community-wide indicators to analyze the effects of
+climate change on community phenology as a whole.
 
 ## Installation
 
-You can install the development version of phenometrics from [GitHub](https://github.com/) with: 
+You can install the development version of phenometrics from
+[GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("pak")
@@ -31,21 +45,29 @@ pak::pak("reidsteele2/phenometrics")
 
 ## Example
 
-Unlike standard phenological analyses, which tend to focus on rates of change, phenometrics calculates Time of Emergence (ToE) metrics, which attempt to identify the exact point at which a species' phenology has exceeded its historical variability and emerged from its previous regime. The phenometrics package assumes input data is provided as a data frame, with standardized column names:
+Unlike standard phenological analyses, which tend to focus on rates of
+change, phenometrics calculates Time of Emergence (ToE) metrics, which
+attempt to identify the exact point at which a species' phenology has
+exceeded its historical variability and emerged from its previous
+regime. The phenometrics package assumes input data is provided as a
+data frame, with standardized column names:
 
 \newline
 
-`year`: Year of the phenological event (numeric).
-\newline
-`species`: Unique species identifier. Can be numeric or character. Required for community but not species level functions.
-\newline
-`event`: Time at which the phenological event occurs, typically day of year (numeric).
-\newline
-`env`: Environmental conditions (usually temperature) at which the phenological event occurs (numeric). Required for time of environmental emergence functions or community functions.
+`year`: Year of the phenological event (numeric). \newline `species`:
+Unique species identifier. Can be numeric or character. Required for
+community but not species level functions. \newline `event`: Time at
+which the phenological event occurs, typically day of year (numeric).
+\newline `env`: Environmental conditions (usually temperature) at which
+the phenological event occurs (numeric). Required for time of
+environmental emergence functions or community functions.
 
 \newline
 
-The basic worker function in the phenometrics package is `emp_tope()`, which calculates the Time of Phenological Emergence (ToPE) for a species using empirical methodology. ToPE only requires two columns in the input dataset: `year` and `event`.
+The basic worker function in the phenometrics package is `emp_tope()`,
+which calculates the Time of Phenological Emergence (ToPE) for a species
+using empirical methodology. ToPE only requires two columns in the input
+dataset: `year` and `event`.
 
 ```{r}
 # library
@@ -60,16 +82,29 @@ year = seq(1,30,1)
 event = round(rnorm(30, 100, 5))- seq(1,30,1)
 dataset = data.frame(year, event)
 plot(dataset, xlab = "Year", ylab = "Phenological Event Timing", pch = 19)
+abline(lm(data = dataset, event ~ year), col = 'red')
 
 # Calculate empirical time of phenological emergence (ToPE)
 emp_tope(dataset)
 
 ```
 
+By default, this function outputs a data frame that contains the year,
+test value p (1 = positive test value, indicating that year has exceeded
+historical variability), emergence status (1 = emerged, 0 = not
+emerged). Emergence occurs once a certain number of consecutive years
+return positive test values (set to 5 by default), and the point of
+emergence is the first of those consecutive years (i.e. it is checking
+whether the emergence holds for the required time interval. This is also
+why the final returned data frame contains NAs in the final 4 years, as
+there are insufficient subsequent years to check for emergence). Unless
+told not to, it also generates a plot of test results against year, and
+if applicable, indicates the point at which emergence occurs.
 
-By default, this function outputs a data frame that contains the year, test value p (1 = positive test value, indicating that year has exceeded historical variability), emergence status (1 = emerged, 0 = not emerged). Emergence occurs once a certain number of consecutive years return positive test values (set to 5 by default), and the point of emergence is the first of those consecutive years (i.e. it is checking whether the emergence holds for the required time interval. This is also why the final returned data frame contains NAs in the final 4 years, as there are insufficient subsequent years to check for emergence). Unless told not to, it also generates a plot of test results against year, and if applicable, indicates the point at which emergence occurs.
-
-Alternatively, `ks_tope()` calculates ToPE using statistical methodology via bootstrapped Kolmogorov-Smirnov tests. This requires there to be replicates within each year to serve as the sample size for the test; the example generated dataset has thirty replicates.
+Alternatively, `ks_tope()` calculates ToPE using statistical methodology
+via bootstrapped Kolmogorov-Smirnov tests. This requires there to be
+replicates within each year to serve as the sample size for the test;
+the example generated dataset has thirty replicates.
 
 ```{r}
 # Set seed
@@ -91,7 +126,10 @@ For more details, see the vignette.
 
 \newline
 
-To examine the environmental conditions a phenological event occurs at rather than its timing, use the mirror function to `emp_tope()` which is `emp_toee()` (and to `ks_tope()` is `ks_toee()`). We refer to this as the Time of Environmental Emergence (ToEE).
+To examine the environmental conditions a phenological event occurs at
+rather than its timing, use the mirror function to `emp_tope()` which is
+`emp_toee()` (and to `ks_tope()` is `ks_toee()`). We refer to this as
+the Time of Environmental Emergence (ToEE).
 
 ```{r}
 # Set seed
@@ -115,32 +153,56 @@ ks_toee(dataset)
 
 ```
 
-These functions perform the same analyses as `emp_tope()` and `ks_tope()`, but on the `env` column instead of the `event` column, and with the direction reversed (by default, ToPE functions look for declining trends in the time series, and ToEE functions look for increasing trends such as an increase in temperature at which a phenological event occurs - this behaviour can be changed using the `alt` argument). Together, ToPE and ToEE can be used to classify a species' phenological response to climate change. For example, if a species emerges in ToPE but not ToEE, then it is shifting its phenology in time but maintaining the environmental conditions at which that phenology occurs. Conversely, a species emerged in ToEE and not ToPE is doing the opposite: it is maintaining the timing of its phenology at the expense of changing the environmental conditions under which it occurs.
+These functions perform the same analyses as `emp_tope()` and
+`ks_tope()`, but on the `env` column instead of the `event` column, and
+with the direction reversed (by default, ToPE functions look for
+declining trends in the time series, and ToEE functions look for
+increasing trends such as an increase in temperature at which a
+phenological event occurs - this behaviour can be changed using the
+`alt` argument). Together, ToPE and ToEE can be used to classify a
+species' phenological response to climate change. For example, if a
+species emerges in ToPE but not ToEE, then it is shifting its phenology
+in time but maintaining the environmental conditions at which that
+phenology occurs. Conversely, a species emerged in ToEE and not ToPE is
+doing the opposite: it is maintaining the timing of its phenology at the
+expense of changing the environmental conditions under which it occurs.
 
 \newline
 
-phenometrics also contains community-level functions that call `emp_tope()` and `emp_toee()` to perform many ToPE and ToEE calculations and then summarize the results across multi-species datasets. `community()` calculates ToPE and ToEE for all unique species in a dataset, and generates classifications based on the results. `class_by_species` and `class_by_year` further summarize and plot these results. They use empirical methodology by default - this can be changed by setting `method = 'statistical'`.
+phenometrics also contains community-level functions that call
+`emp_tope()` and `emp_toee()` to perform many ToPE and ToEE calculations
+and then summarize the results across multi-species datasets.
+`community()` calculates ToPE and ToEE for all unique species in a
+dataset, and generates classifications based on the results.
+`class_by_species` and `class_by_year` further summarize and plot these
+results. They use empirical methodology by default - this can be changed
+by setting `method = 'statistical'`.
 
 ```{r}
 # Set seed
 set.seed(123)
 
-# Create test dataset 1
-year = seq(1,30,1)
-event = round(rnorm(30, 100, 5))- seq(1,30,1)
-env = (rnorm(30, 15, 0.5))
-species = 1
-sp1 = data.frame(year, species, event, env)
-
-# Create test dataset 2
-year = seq(1,30,1)
-event = round(rnorm(30, 100, 5))
-env = (rnorm(30, 15, 0.5)) + seq(0.1,3,0.1)
-species = 2
-sp2 = data.frame(year, species, event, env)
-
-# combine
-dataset = as.data.frame(rbind(sp1, sp2))
+# Create 5 test species
+dataset = NULL
+rev = 5:1
+for(i in 1:5){
+  
+  # Year
+  year = seq(1,30,1)
+  
+  # Event timing
+  event = round(rnorm(30, 100, 5))- (seq(1,30,1)/i)
+  
+  # Environment
+  env = (rnorm(30, 15, 0.5)) + (seq(0.1,3,0.1)/rev[i])
+  
+  # Species id
+  species = i
+  
+  # bind
+  dataset = rbind(dataset, data.frame(year, species, event, env))
+  
+}
 
 # Calculate empirical time of phenological emergence (ToPE)
 comm = community(dataset)
@@ -151,7 +213,10 @@ cby = class_by_year(comm)
 
 ```
 
-Additionally, phenometrics can also use ToE methodology to determine the point at which phenological mismatch occurs between two species. We call this Time of Mismatch (ToM), and it can be calculated using the `emp_tom()` and `ks_tom()` functions.
+Additionally, phenometrics can also use ToE methodology to determine the
+point at which phenological mismatch occurs between two species. We call
+this Time of Mismatch (ToM), and it can be calculated using the
+`emp_tom()` and `ks_tom()` functions.
 
 ```{r}
 # Set seed
@@ -177,33 +242,17 @@ ks_tom(sp1, sp2)
 
 ```
 
-You'll notice ToM results take a similar form to the ToPE and ToEE results. The similarities don't end there - phenometrics also contains community-level wrapper functions for multi-species mismatch datasets. `comm_mismatch()`, `comm_mm_by_spp()`, and `comm_mm_by_year()` are the mismatch equivalents to the above ToPE/ToEE-based functions. As with `class_by_species` and `class_by_year`, they use empirical methodology by default but this can be changed by setting `method = 'statistical'`.
+You'll notice ToM results take a similar form to the ToPE and ToEE
+results. The similarities don't end there - phenometrics also contains
+community-level wrapper functions for multi-species mismatch datasets.
+`comm_mismatch()`, `comm_mm_by_spp()`, and `comm_mm_by_year()` are the
+mismatch equivalents to the above ToPE/ToEE-based functions. As with
+`class_by_species` and `class_by_year`, they use empirical methodology
+by default but this can be changed by setting `method = 'statistical'`.
 
 ```{r}
 # Set seed
 set.seed(123)
-
-# Create test dataset 1
-year = seq(1,30,1)
-event = round(rnorm(30, 100, 5))- seq(1,30,1)
-env = (rnorm(30, 15, 0.5))
-species = 1
-sp1 = data.frame(year, species, event)
-
-# Create test dataset 2
-year = seq(1,30,1)
-event = round(rnorm(30, 100, 5))
-species = 2
-sp2 = data.frame(year, species, event)
-
-# Create test dataset 3
-year = seq(1,30,1)
-event = round(rnorm(30, 95, 5))- seq(1,15,1)
-species = 3
-sp3 = data.frame(year, species, event)
-
-# combine
-dataset = rbind(sp1, sp2, sp3)
 
 # Calculate empirical time of phenological emergence (ToPE)
 comm_mm = comm_mismatch(dataset)
@@ -214,25 +263,31 @@ mm_cby = comm_mm_by_year(comm_mm)
 
 ```
 
-`comm_mismatch` only tests species against each other if their event timing values are within one standard deviation of each other to avoid frivolous matching behaviour. `comm_mm_by_spp()` calculates and plots the proportion of relevant species in the dataset with which each species is mismatched in each year, while `comm_mm_by_year()` averages these values each year to calculate the average mismatch proportion of the entire community each year.
+`comm_mismatch` only tests species against each other if their event
+timing values are within one standard deviation of each other to avoid
+frivolous matching behaviour. `comm_mm_by_spp()` calculates and plots
+the proportion of relevant species in the dataset with which each
+species is mismatched in each year, while `comm_mm_by_year()` averages
+these values each year to calculate the average mismatch proportion of
+the entire community each year.
 
 \newline
 
-The final function in the phenometrics package is `sim_ts()`, which is used to simulate future years of a phenology time series. It can be used to estimate the time of future emergence in cases where a trend exists, but emergence has not year occurred.
+The final function in the phenometrics package is `sim_ts()`, which is used to simulate future years of a phenology time series. It can be used to estimate the time of future emergence in cases where a trend exists, but emergence has not yet occurred. This function works by sampling points from the provided data and adding the linear trend. Sample size, variability, and linear trend are all extracted from the provided original time series and assumed to remain constant. `sim_ts()` can handle multi-species datasets, and can simulate one or both of `event` and `env`.
 
 ```{r}
 # Set seed
 set.seed(123)
 
 # Create test dataset
-year = rep(seq(1,30,1), 10)
-event = round(rnorm(300, 100, 5))- rep(seq(1,30,1), 10)
+year = rep(seq(1,10,1), 10)
+event = round(rnorm(300, 100, 5)) - (rep(seq(0,0.3,length.out = 10), 10))
 species = 1
 env = (rnorm(300, 15, 0.5))
 dataset = data.frame(year, species, event, env); dataset = dataset[order(dataset$year),]
 
-# Years to Simulate (10 more years)
-years_sim = max(year+1):max(year+10)
+# Years to Simulate (30 more years)
+years_sim = max(year+1):max(year+30)
 
 # Run simulation
 data_sim = sim_ts(dataset, years_sim)
@@ -243,6 +298,32 @@ data_sim$simulated = ifelse(data_sim$year %in% years_sim, 'simulated', 'original
 # Plot
 ggplot(data_sim, aes(x = year, y = event, color = simulated)) + geom_point()
 
+# Tests
+test = emp_tope(dataset) # Emergence has not yet occurred
+test = emp_tope(data_sim) # When emergence is predicted to occur based on simulated years
 
+
+```
+
+If using this functionality, we recommend recalculating many simulated time series and summarizing the resulting ToE values in order to buffer for simulation randomness. For example:
+
+```{r}
+# 100 iterations of ToE calculations on simulated datasets
+toe = c()
+for(i in 1:100){
+  
+  # Run simulation
+  data_sim = sim_ts(dataset, years_sim)
+  
+  # Calculate ToPE
+  toe_yr = emp_tope(data_sim, plot = F)
+  
+  # ToE is first year with emerged == 1
+  toe = c(toe, min(toe_yr$year[toe_yr$emerged==1], na.rm = T))
+  
+}
+
+# Plot histogram of ToE values
+hist(toe)
 ```
 

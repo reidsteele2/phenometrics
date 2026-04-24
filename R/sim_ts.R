@@ -39,67 +39,78 @@ sim_ts = function(data, simyears){
   # Simulating forwards
   data_sim = data
 
+  # Check for species column, make one if it does not exist
+  if(!('species' %in% colnames(data))){data$species = 1}
+
+  # Error if no event or env column
+  if((!('event' %in% colnames(data))) & (!('env' %in% colnames(data)))){
+    stop('no event or env column to simulate')
+  }
+
+  # Loop through species
   for(i in 1:length(unique(data$species))){
 
+    # species name
     spp = unique(data$species)[i]
 
+    # filter to species
     sppdata = dplyr::filter(data, species == spp)
 
-    # Fit linear model (arrival)
-    lm_ev = lm(event ~ year, data = sppdata)
+    # Check if event exists
+    if('event' %in% colnames(data)){
 
-    # Pull out slope
-    lm_ev_summ = summary(lm_ev)
-    lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
+      # Fit linear model (arrival)
+      lm_ev = lm(event ~ year, data = sppdata)
 
-    # # # Plot LM
-    # plot(event ~ year, data = sppdata, pch = 16)
-    # abline(lm_ev, col = 'blue', lwd = 2)
+      # Pull out slope
+      lm_ev_summ = summary(lm_ev)
+      lm_ev_b = lm_ev_summ$coefficients['year','Estimate']
 
-    # Gather years
-    years = unique(sppdata$year)
+      # prediction values at data points
+      abs_preds = predict(lm_ev, newdata = data)
 
-    # Adjust year to order
-    years_0 = years-min(years)
+      # calculate baseline value
+      baseline_val = predict(lm_ev, newdata = data.frame(year = min(data$year)))
 
-    # Generate match index
-    ind = match(sppdata$year, years)
+      # Calculate adjustment
+      adj = abs_preds - baseline_val
 
-    # Calculate adjustment
-    adj = (ind-1)*lm_ev_b
+      # Detrend
+      data_d = data
+      data_d$event = data_d$event-adj
 
-    # Detrend
-    data_d = sppdata
-    data_d$event = data_d$event-adj
+    } # End event check if
 
-    # Fit linear model (temperature)
-    lm_env = lm(env ~ year, data = sppdata)
+    # Check if env exists
+    if('env' %in% colnames(data)){
 
-    # Pull out slope
-    lm_env_summ = summary(lm_env)
-    lm_env_b = lm_env_summ$coefficients['year','Estimate']
+      # Fit linear model (temperature)
+      lm_env = lm(env ~ year, data = sppdata)
 
-    # # # Plot LM
-    # plot(env ~ year, data = sppdata, pch = 16)
-    # abline(lm_env, col = 'blue', lwd = 2)
+      # Pull out slope
+      lm_env_summ = summary(lm_env)
+      lm_env_b = lm_env_summ$coefficients['year','Estimate']
 
-    # Gather years
-    years = unique(sppdata$year)
+      # prediction values at data points
+      abs_preds = predict(lm_env, newdata = data)
 
-    # Adjust year to order
-    years_0 = years-min(years)
+      # calculate baseline value
+      baseline_val = predict(lm_env, newdata = data.frame(year = min(data$year)))
 
-    # Generate match index
-    ind = match(sppdata$year, years)
+      # Calculate adjustment
+      adj = abs_preds - baseline_val
 
-    # Calculate adjustment
-    adj = (ind-1)*lm_env_b
+      # Detrend
+      data_d = data
+      data_d$env = data_d$env-adj
 
-    # Detrend
-    data_d$env = data_d$env-adj
+    } # End env check if
 
     # Calculate median sample size
     mss = as.numeric(dplyr::group_by(data_d, year) %>% dplyr::summarize(n = dplyr::n()) %>% dplyr::summarize(median(n)))
+
+    # Gather minimum year
+    minyear = min(data$year)
 
     # Loop through years to add
     for(j in 1:length(simyears)){
@@ -111,10 +122,14 @@ sim_ts = function(data, simyears){
       data_add$year = simyears[j]
 
       # Adjust event to match trend
-      data_add$event = data_add$event + ((simyears[j] - min(years))*lm_ev_b)
+      if('event' %in% colnames(data)){
+        data_add$event = data_add$event + ((simyears[j] - minyear)*lm_ev_b)
+      }
 
       # Adjust environment to match trend
-      data_add$env = data_add$env + ((simyears[j] - min(years))*lm_env_b)
+      if('env' %in% colnames(data)){
+        data_add$env = data_add$env + ((simyears[j] - minyear)*lm_env_b)
+      }
 
       # fill result
       data_sim = rbind(data_sim, data_add)
