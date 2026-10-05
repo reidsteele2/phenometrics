@@ -9,7 +9,12 @@
 This package contains functions to analyze phenological responses to climate change using Time of Emergence (ToE) methodology, which is designed to identify the point at which a species establishes a 'new normal' in terms of its phenology. It also contains functions to summarize the ToE results of many species into community-level indicators, and test for match/mismatch dynamics between species.
 }
 \author{
-\strong{Maintainer}: First Last \email{first.last@example.com}
+\strong{Maintainer}: Reid Steele \email{reid.steele2@gmail.com}
+
+Authors:
+\itemize{
+  \item Reid Steele \email{reid.steele2@gmail.com}
+}
 
 }
 \keyword{internal}

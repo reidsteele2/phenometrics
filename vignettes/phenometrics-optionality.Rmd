@@ -275,7 +275,7 @@ End-users should be aware that aside from 1 and -1 in the empirical ToE function
 
 ## Threshold Values
 
-Both statistical and empirical ToE tests rely on various threshold values to quantify emergence. Generally, we do not recommend changing the values of these thresholds from their defaults unless there is clear and convincing reason to do so (i.e. ToE clearly does not match visual inspection of the time series).
+Both statistical and empirical ToE tests rely on various threshold values to quantify emergence. Generally, we do not recommend changing the values of these thresholds from their defaults unless there is clear and convincing reason to do so (e.g. ToE clearly does not match visual inspection of the time series, correcting for multiple tests, etc.).
 
 ### Empirical Thresholds
 
@@ -768,6 +768,4 @@ test = emp_tope(dataset)
 test = emp_tope(dataset_gap)
 test = emp_tope(dataset_filled)
 ```
-
-
 
